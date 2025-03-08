@@ -31,6 +31,4 @@ Economy Entity:
   - Collection of Order Listing
 
 Order Listing:
-  - Operation (buy or sell), supply or demand quantity, price point modifier, 
-
-Trade
+  - Operation (buy or sell), supply or demand quantity, price point modifier
