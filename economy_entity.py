@@ -16,7 +16,7 @@ def clamp(value, lower, upper):
     return lower if value < lower else upper if value > upper else value
 
 
-def map_range_clamped(value, in_min, in_max, out_min, out_max):
+def map_range_max_clamped(value, in_min, in_max, out_min, out_max):
     """
     Maps a value from one range to another while clamping it to the input range.
 
@@ -28,14 +28,14 @@ def map_range_clamped(value, in_min, in_max, out_min, out_max):
     :return: float - The mapped and clamped value in the output range.
     """
     # Clamp the value within the input range
-    clamped_value = clamp(value, in_min, in_max)
+    clamped_value = min(value, in_max) #clamp(value, in_min, in_max)
 
     # Normalize and map the value to the output range
     return out_min + (clamped_value - in_min) * (out_max - out_min) / (in_max - in_min)
 
 
-def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=1.1, min_sell_discount=0.8,
-                             max_sell_discount=0.95, sell_k=5):
+def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
+                             max_sell_discount=0.98, sell_k=5):
     """
     Calculates the price point of a commodity based on a logistic supply-demand curve.
     Works well with high supply or negative values.
@@ -58,6 +58,8 @@ def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k
 
     sell_discount = min_sell_discount + (max_sell_discount - min_sell_discount) / (
             1 + math.exp(-sell_k * (1 - supply_ratio)))
+
+
 
     # print(sell_discount)
     return buy_logistic_multiplier, buy_logistic_multiplier * sell_discount
@@ -106,10 +108,10 @@ def get_quality_price_multiplier(base_price, quality):
     """
     if base_price >= 20:
         quality_ranges = {
-            'D': (0.90, 0.95),
-            'C': (0.95, 1.0),
-            'B': (1.0, 1.05),
-            'A': (1.05, 1.10)
+            'D': (0.95, 0.975),
+            'C': (0.975, 1.0),
+            'B': (1.0, 1.025),
+            'A': (1.025, 1.05)
         }
         min_range, max_range = 0.95, 1.05
     else:
@@ -119,7 +121,7 @@ def get_quality_price_multiplier(base_price, quality):
             'B': (1.0, 1.1),
             'A': (1.0, 1.20)
         }
-        min_range, max_range = 0.9, 1.1
+        min_range, max_range = 0.8, 1.2
 
     base_min, base_max = quality_ranges[quality]
 
@@ -192,9 +194,11 @@ class Market:
             return round(order_listing.get_price(self.trade_good_status[trade_good].get_buy_modifier(), 1 - price_range,
                                                  1 + price_range))
         elif operation == "Sell":
-            return min(round(
-                order_listing.get_price(self.trade_good_status[trade_good].get_sell_modifier(), 1 - price_range,
-                                        1 + price_range)), min_buy_price)
+            price = round(order_listing.get_price(self.trade_good_status[trade_good].get_sell_modifier(), 1 - price_range,
+                                        1 + price_range, 0.5, 1.5))
+            #print(price)
+            return min(price, min_buy_price)
+        # maybe instead of 0.5-1.5 use the actual price points idk
 
     def get_final_price_by_value(self, price, trade_good, operation):
         if operation == "Buy":
@@ -388,8 +392,15 @@ class Market:
 
             quality_distribution.append(quality)
 
-        ratio = supply / equilibrium if equilibrium != 0 else 0
+        ratio = supply / equilibrium if equilibrium != 0 else supply
         buy_price, sell_price = calculate_price_logistic(floor, ceil, ratio)
+        sell_ratio = sell_price / buy_price if buy_price != 0 else 0.9
+
+        #we adjust the sell price to account for intersection between the lowest buying prices and maximum selling prices
+        #higher supply - greater divide between buy and sell price and vice versa
+        sell_price = sell_price * sell_ratio
+        #print(sell_ratio)
+
         print(buy_price * market_score, sell_price * market_score)
 
         buy_final_prices = []
@@ -421,9 +432,10 @@ class Market:
 
         # get the minimum buying price to then establish a maximum selling price
         max_sell_final_price = min(buy_final_prices) - 1
-        print(max_sell_final_price)
-
+        print(f"Min:{max_sell_final_price}")
+        #print(60 * market_score * buy_price, 60 * market_score * sell_price)
         sell_final_prices = []
+
 
         for i in range(7):
             #quality_modifier = get_quality_price_multiplier(60, quality_distribution[i])
@@ -432,7 +444,7 @@ class Market:
 
             sell_order = OrderListing(tg, price_point, sell_goods[i], quality_distribution[i])
             sell_final_prices.append(self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price))
-            #print(sell_order.get_price(1, floor, ceil))
+             #print(sell_order.get_price(1, floor, ceil))
             ees[i].sell_orders.append(sell_order)
 
             #print(price_point)
@@ -486,9 +498,9 @@ class OrderListing:
         self.quantity = quantity
         self.quality = quality
 
-    def get_price(self, modifiers=1, out_min=0.55, out_max=1.45):
+    def get_price(self, modifiers=1, out_min=0.55, out_max=1.45, in_min=0.5, in_max=1.5):
         return (main.inflation * main.trade_goods_base_prices[self.trade_good] *
-                map_range_clamped(self.price_point * modifiers, 0.5, 1.5, out_min, out_max))
+                map_range_max_clamped(self.price_point * modifiers, in_min, in_max, out_min, out_max))
         # final modifier will be mapped to the provided range.
         # meaning if we have a tighter price range, price will be together but rarely cut off from the limit.
 
