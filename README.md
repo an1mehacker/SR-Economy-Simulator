@@ -30,6 +30,7 @@ TradeGoodStatus:
   - Trade Good to modifiy, price range modifiers, essential, legality, equilibrium quantity
 
 Economy Entity:
+An EE can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
   - Collection of Order Listing
 
 Order Listing:
