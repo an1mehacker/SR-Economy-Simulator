@@ -1,0 +1,151 @@
+Economy Simulator 
+
+Simulation
+---
+Fixed integer passage of time by 1 day at a time
+To simplify, time starts at 0 days and increments indefinitely, no need to deal with dates.
+Every day, producers add a quantity dependant on planet's size (population) based on a logarithmic or sqrt base formula. The more surplus exists on the planet's Market, the lower the new production of that specific trade good.
+The Market also consumes 
+Random events that affects Supply and Demand of a planet.
+Rare random events that add new or remove low market cap Enterprise EEs from planets. This happens much more commonly  to Individual EEs. 
+
+inflation is a global price modifier
+inflation rises from 100% to 400% (4.0x) in 10k days
+
+planet market modifers are 3x compared to lowest planets
+
+Simulation generates EEs for each habitable object based on a planet's size. 
+First, according to a formula generates the total amount of trade goods. 
+
+The trade goods are distributed to the EEs according to this method.
+1. Get a Bell Curve random value from 0 to 1  
+2. Multiply that value to the amount rounded of the trade goods and assign that to an EE. 
+3. Subtract the value gotten from step 2 from total trade goods.
+4. Repeat step 2 x times. If reached 0, stop and add the remaining goods to the last EE.
+
+
+Individual EEs have a base chance of 0.0005% (0.000005f) chance of dying at any day, folding the EE. The lower the market cap, the more inversely proportional the odds of the EE folding. So a market cap of ~0% gets an additional 2% every day chance of folding with an estimated 45% of dying within a month. From 0-5% MC , Individuals follow a curve of 2% to base chance. As there are a lot more individuals, the market cap floor is lower.
+Enterprise EEs are more resilient and odds are 0 at larger market cap values (>= 10%) and a lot higher at very low market caps. From 0-10% MC, Enterprises follow a curve from 5% to 0% of folding.
+When an EE folds, it must be fulfilled by either joining with a random Enterprise EE (market cap is transfered) or is replaced by a new Individual EE.
+
+Individual EEs can be promoted to Enterprises when it hits a sufficiently large MC.
+
+Hierarchy / Data Structures
+---
+Habitable Object - Planet or Station - Or simply a Market
+ - Population determines market cap modifier. Higher population -> More overall trade and EE amount
+For each habitable object:
+ -> Producers and Clients |	Economy Entities (EEs)
+ 	-> Order Listing - A single demand to buy or sell a specific trade good from a specific EE
+ 	-> Summary Listing - Average weighted price and minimum or maximum price from all EEs for a specific trade good. Calulated from existing order listing
+ 	-> Producers generate Trade goods over time and offer them for sale
+ 		-> You can find goods of lower quality but cheaper prices and larger quantities. The challenge then is finding a place that buys it.
+ 	-> Clients buy items from Actors, as in Player sells items to Clients for a profit
+ 		Minimum Quality: If you want to sell to a client your trade goods need to be of a certain grade. Clients will not accept a trade with a lower good quality.
+ 		If they accept, they will not pay more for a higher grade.
+-> Actors interact with different Habitable Objects and their Producers and Clients
+
+Weighted prices are a sum of all prices of a trade good from all EEs multiplied by the amount of stuff in proportion they want to either buy or sell - market cap.
+This is used for the average price to show the quick screen of all the trade goods items.
+So something like
+Trade Good A, Avg Weighted Price: 50, Min Price: 45
+
+Economy Entities can be of 2 sizes: Enterprise and Individual. Enterprise have greater market cap but lower price and quality variability. Meaning you can find order listing of cheaper and better quality than anything else but at lower volume.
+For example an individual client can buy 10 Luxury Goods at the highest market price but with only the highest quality.
+
+Individual EEs represent very small companies with no more than 3-4 employees. If one of their members leaves it leaves a high chance of the company collapsing.
+
+------------------
+Production and Consumption
+------------------
+
+A Market can consume trade goods from the producers in 3 ways:
+1 - Internal Market consumption based on the Market's needs and size. This consumption is fairly constant over time.
+2 - An Actor like an NPC who arrived at the planet and has decided to purchase trade goods from producers. Burst consumption.
+3 - An Actor has bought trade goods remotely and effectively removed the trade goods from the market. Burst consumption.
+
+When consumption happens an amount of Quantity is removed from the target Producer's respective Order Listing. 
+Optionally this consumption results in a transfer of trade goods to an Actor or the Actor's Storage.
+
+A Market can run into a minor trade good deficit when the Current Supply is inferior to a Market's Equilibrium Supply. 
+A major deficit triggers when the Curret Supply enters into the negatives. 
+
+------------------
+Trade Goods
+------------------
+
+We have 3 categories of trade goods: Raw, Intermediary and Manufactured. Planets produce more manufactured goods when they don't have a shortage of raw trade goods.
+
+Raw:
+Organics - organic ingredients like cloth, coffee, tea, spices, real meat. High volatility, medium price.
+Synthetics - plastic and oil based materials
+Common minerals - Metals found commonly across the universe. High volatility, very low price.
+Rare minerals - Rare metals and raw ore that are highly prized. Low volatility, high price.
+
+Intermediary: 
+Refined Minerals - Glass, Metals and other useful alloys and compounds ready to be used for industry
+
+Manufactured:
+Supplies - basic necessities to live, food, water, hygienic products, clothes, everyday stuff. Medium volatility, low price. Critical
+Medicine - Pills, life saving drugs, prescription medicine, medical supplies. Low volatility, low+ price. Critical except on maloq planets.
+Alcohol - Low volatility, Medium price. Critical on human and peleng planets.
+Technology Goods - Gadgets, computers, anything that requires a power source to run. Medium volatility, Medium+ price.
+Luxury Items - Rare, well made objects crafted by actual people like jewelry and designer clothing. medium volatility, very high price.
+Weapons - Grenades, blasters, firearms, explosives, combat gear. Medium volatility, high price.
+Drugs - High volatility, very high price.
+Equipment parts - parts required to produce ships and equipment and for repair. Medium volatility, Medium price. 
+Fuel (Critical) - Low price and variability
+Ammonition - Medium price, low variability
+
+When displaying the price of a trade good we need 3 numbers: Base price of the trade good, inflation and price point. 
+Price point is a multiplier, it's the main gauge at how expensive a trade good is. When comparing trade goods of the same type (accounting for inflation) the difference in price is the price point.
+Additionally we can have 2 more numbers: daily fluctuation and event. These numbers apply to the entire planet.
+To display the final price we multiply those 3 numbers. 
+Example, tech goods's base price 60, inflation is at 2.0 and the specific price point is at 0.9. The final price is 108cr. 
+
+When updating prices we need to calculate this number again to account for inflation.
+
+
+
+Supply Demand
+---
+How much an EE wants to sell or buy, trade volume, is called Market Cap - MC
+Market Cap is seperate for Enterprises and Individuals.
+How good a deal is, is determined by its Value, a thumbsup or down icon up to 3 thumbs up. 
+It's determined by comparing the deal against all listings in the simulation and checking what ranking it occupies.
+
+Selling prices - When you sell, the selling prices should fall to match the new supply over the course of a few days. The more stockpile the planet accumulates, the lower and faster this price will fall be as the planet simply doesn't need more.
+Additionally there are several points where the prices are recalculated immediately depending on how much we're buying or selling at a time. This concept is called Bracketed Pricing
+
+Buying prices - However buying prices are a lot more rigid and tend to fluctuate a lot less. Trade goods marked as essential are even more rigid. Buying prices get lower when the planet receives a sell-off event and when stockpiles accumulate for a very long time.
+
+Baseline price - depending on the planet's size and development level, prices should stay roughly the same. Large developed planet usually have more expensive goods to account for higher wages and standards of living. Many other factors can influence the baseline price, features like production focus, planet political type, planet modifiers.
+
+Galactic Average - Weighted sum (for population) of a specific trade good and divided by all planets. We could also use the median price.
+
+Daily fluctuation - Non-essential prices of goods should randomly fluctuate about at most 5% off of the baseline price every day and change positively or negatively 2.5% at a time.
+So if we have Technology Goods that right now cost 60cr. One day they can cost 59, other 61, 58, 57, 62, 63, 60. etc. Some goods have larger or smaller fluctuations.
+
+Sell Multiplier - Difference between buying and selling prices. For example this multiplier can be 0.8x to 0.95x of the buying price. 
+
+Price Range - Range of prices that can happen across all Markets. Some goods have very low profit margins and are often very close together, others can have much larger margins, this price range determines the potential profit.
+An example of a price range: 0.55 - 1.45 or 0.75 - 1.25. For example we see a good that has a base cost of 60, applying the first price range we get a min buying price of 33 and a max buying price of 87. 
+Since selling prices are always lower than the buying prices, the selling price is more limited at the max of the price range.
+
+Sale Event - Random event where a certain trade good receives a large discount and lasts for many days. 
+Deficit Event - A deficit event can be triggered when the planet has not received any trade good for a long period of time. A certain amount of target goods will be requested at a higher price, after that it will restore to normal price.
+
+Consumption - All planets consume a certain amount of trade goods passively. Occasionally there's a large consumption event where a share of goods get taken off the market. 
+
+Equilibrium 
+
+Supply Ratio - Supply / 
+
+Player Inventory
+---
+Money
+Trade Good -> Type, Quantity, Quality (D to A) and place of Origin, bought price, ownership
+
+Features
+---
+Global Listing - List of Summary Listings for each Trade Goods both for buying and selling
