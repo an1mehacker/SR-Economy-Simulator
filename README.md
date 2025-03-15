@@ -1,5 +1,7 @@
 My attempt at creating a dynamic economy inspired by the game Space Rangers HD: A War Apart along with changes that I think makes trading more interesting.
 
+To use this project, run economy_entity.py and enter a desired amount for the needed parameters
+
 Summary:
 - One Market class is generated to display a trade good.
 - Multiple corporations will spawn each with different qualities and price ranges
