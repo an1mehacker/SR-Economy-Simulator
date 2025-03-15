@@ -1,5 +1,7 @@
 ﻿import math
 import random
+from hashlib import algorithms_available
+
 import main
 from prettytable import PrettyTable
 import normalrandom
@@ -151,6 +153,7 @@ def get_quality_price_multiplier(base_price, quality):
 def bracketed_pricing(equilibrium):
     # Get breakoff quantity values at 0.75, 0.2, 1.25 and 2
     # Any time those supply ratios are exceeded whether by buying or selling, the prices immediately recalculate
+    # in respect to the operation
     # The market will still gradually adjust their prices over time.
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
     return round(0.75 * equilibrium), round(0.2 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
@@ -370,14 +373,19 @@ class Market:
         self.trade_good_status[tg] = temp_status
 
         # allocate supply for an amount of EEs
-        # determine spread of prices across all EEs. 0.95x - 1.05x for base prices over 20, under 20 0.9x - 1.1x
+        # determine spread of prices across all EEs. 0.95x - 1.05x for base prices over 20, under 20 0.8x - 1.2x
         # this spread isn't related to price distributions on main.py as that's how much prices vary over multiple economies
         # create order listings for each EE by using the price spread
         # the price point depends on the quality where the random value tends to the range interval.
         ees = []
         qualities = ['D', 'C', 'B', 'A']
 
-        buy_goods = normalrandom.trade_good_distribution(supply, 7)
+        # available supply is what the market offers to export to avoid a player induced deficit by not making available
+        # everything to purchase. If Equilibrium is 500, you won't be able to buy enough to cause supply go below
+        # 0.75x - 375 units. Meaning the player can only buy from 0.75 ratio and above. However, the price calculations
+        # still use of the total supply existing on the market
+        available_supply = supply - bracketed_pricing(equilibrium)[0]
+        buy_goods = normalrandom.trade_good_distribution(available_supply, 7)
 
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
                  'Voidware Devices',
@@ -463,6 +471,7 @@ class Market:
 
         print(f"Situation - {situation}")
         print(f"Breakoffs - {bracketed_pricing(equilibrium)}")
+        print(f"Internal supply (unavailable for you): {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))}")
 
         return ees
 
