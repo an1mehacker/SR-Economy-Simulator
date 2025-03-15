@@ -7,6 +7,7 @@ Summary:
 - An equilibrium quantity will determine the status of the trade good: Deficit, Balanced or Surplus
 - The prices will reflect the status following supply and demand law
 - When supply is low, selling prices approach buying prices to incentivize selling
+- Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
 
 Most important file is economy_entity.py
 
