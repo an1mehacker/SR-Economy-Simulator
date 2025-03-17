@@ -1,13 +1,13 @@
-My attempt at creating a dynamic economy inspired by the game Space Rangers HD: A War Apart along with changes that I think makes trading more interesting.
+My attempt at creating a dynamic economy inspired by the game Space Rangers HD: A War Apart along with the changes that I think makes trading more interesting.
 
-To use this project, run economy_entity.py and enter a desired amount for the needed parameters
+To use this project, run main.py and enter a desired amount for the needed parameters in the code itself.
 
 Summary:
 - One Market class is generated to display a trade good.
 - Multiple corporations will spawn each with different qualities and price ranges
 - A supply of trade goods will be distributed among the corporations
 - An equilibrium quantity will determine the status of the trade good: Deficit, Balanced or Surplus
-- The prices will reflect the status following supply and demand law
+- The prices will reflect the status following supply and demand law 
 - When supply is low, selling prices approach buying prices to incentivize selling
 - Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
 
