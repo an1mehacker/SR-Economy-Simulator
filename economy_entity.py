@@ -2,10 +2,49 @@
 import random
 from hashlib import algorithms_available
 
-import main
+#import main
 from prettytable import PrettyTable
 import normalrandom
 
+inflation = 1.0
+
+trade_goods = ["Organics", "Synthetics", "Common Minerals", "Rare Minerals",
+    "Refined Minerals", "Supplies", "Medicine", "Vice Goods", "Technology Goods",
+    "Luxury Goods", "Weapons", "Recreational Drugs", "Equipment Parts", "Fuel",
+    "Ammunition"]
+
+trade_goods_base_prices = {
+    trade_goods[0] :  17, #Organics
+    trade_goods[1] :  13, #Synthetics
+    trade_goods[2] :  9,  #Common Minerals
+    trade_goods[3]:   40, #Rare Minerals
+    trade_goods[4] :  20, #Refined Minerals
+    trade_goods[5] :  22, #Supplies
+    trade_goods[6] :  30, #Medicine
+    trade_goods[7] :  30, #Vice Goods
+    trade_goods[8] :  60, #Technology Goods
+    trade_goods[9] :  150,#Luxury Goods
+    trade_goods[10] : 75, #Weapons
+    trade_goods[11] : 300,#Recreational Drugs
+    trade_goods[12] : 90, #Equipment Parts
+    trade_goods[13] : 10, #Fuel
+    trade_goods[14] : 15, #Ammunition
+}
+
+# Minimum and maximum price points that can happen across every market
+# increments of 0.2 / 9
+price_distributions = [
+    (0.55, 1.45),   #50%  0
+    (0.572, 1.428), #100% 1
+    (0.594, 1.405), #150  2
+    (0.617, 1.383), #200% 3
+    (0.638, 1.361), #250% 4
+    (0.661, 1.339), #300% 5
+    (0.683, 1.317), #350% 6
+    (0.705, 1.294), #400% 7
+    (0.728, 1.272), #450% 8
+    (0.75, 1.25)    #500% 9
+]
 
 def clamp(value, lower, upper):
     """
@@ -163,10 +202,10 @@ class Market:
     def __init__(self, market_name, market_score, economy_entities, trade_good_status):
         """
 
-        :param market_name: string - name of the market
+        :param market_name: string - name of the market like the planet or station's name
         :param market_score: a global price modifier, goods are more expensive in highly developed markets
         :param economy_entities:  list of EconomyEntities
-        :param trade_good_status:
+        :param trade_good_status: list of TradeGoodStatus
         """
         self.name = market_name
         self.market_score = market_score
@@ -252,7 +291,7 @@ class Market:
         return buy_orders, sell_orders, text
 
     def trade_good_listing(self, trade_good):
-        if trade_good not in trade_statuses:
+        if trade_good not in self.trade_good_status:
             print("N/A")
             return
 
@@ -339,12 +378,12 @@ class Market:
         :return:
         """
         max_fluctuation = self.trade_good_status[trade_good].max_fluctuation
-        base_price = main.trade_goods_base_prices[trade_good]
+        base_price = trade_goods_base_prices[trade_good]
         modifiers = ((1 + max_fluctuation) *
                      (math.prod(self.trade_good_status[trade_good].sell_modifiers)
                       if self.trade_good_status[trade_good].sell_modifiers else 1))
 
-        price_point = max_buying_price / (base_price * main.inflation * modifiers)
+        price_point = max_buying_price / (base_price * inflation * modifiers)
 
         # return round(price * self.trade_good_status[trade_good].get_buy_modifier(mul))
 
@@ -354,17 +393,47 @@ class Market:
 
         return price_point
 
-    def generate_new_ees(self):
+    @staticmethod
+    def generate_market(market_name, equilibrium, supply, market_score, price_range):
+        trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
+                                        [], [], 0.45, 500, 480)
+
+        temp_trade_statuses = {
+            trade_goods[0]: trade_status1,
+            trade_goods[1]: trade_status1,
+            trade_goods[2]: trade_status1,
+            trade_goods[3]: trade_status1,
+            trade_goods[4]: trade_status1,
+            trade_goods[5]: trade_status1,
+            trade_goods[6]: trade_status1,
+            trade_goods[7]: trade_status1,
+            trade_goods[8]: trade_status1,
+            trade_goods[9]: trade_status1,
+            trade_goods[10]: trade_status1,
+            trade_goods[11]: trade_status1,
+            trade_goods[12]: trade_status1,
+            trade_goods[13]: trade_status1,
+            trade_goods[14]: trade_status1,
+        }
+
+        temp = Market(market_name, market_score, [], temp_trade_statuses)
+        ees = temp.generate_new_ees(equilibrium, supply, market_score, price_range, True)
+        temp.economy_entities = ees
+        return temp
+
+    def generate_new_ees(self, equilibrium, supply, market_score, price_range, verbose=True):
         # for now just try one trade good "Technology Goods"
         # determine trade status, equilibrium quantity and current quantity
-        equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
-        supply = int(input("Input a Current Supply > "))  # 480
+        #equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
+        #supply = int(input("Input a Current Supply > "))  # 480
 
         # market score determines development level, highly developed markets's goods are more expensive
-        market_score = float(input("Input a market score (0.8x - 1.2x) > "))
+        #market_score = float(input("Input a market score (0.8x - 1.2x) > "))
 
         # price point ranges
-        floor, ceil = main.price_distributions[0][0], main.price_distributions[0][1]
+        # price_range = 0 #0 - 9
+        floor, ceil = price_distributions[price_range][0], price_distributions[price_range][1]
+
 
         tg = "Technology Goods"
         temp_status = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
@@ -381,10 +450,11 @@ class Market:
         qualities = ['D', 'C', 'B', 'A']
 
         # available supply is what the market offers to export to avoid a player induced deficit by not making available
-        # everything to purchase. If Equilibrium is 500, you won't be able to buy enough to cause supply go below
-        # 0.75x - 375 units. Meaning the player can only buy from 0.75 ratio and above. However, the price calculations
+        # everything to purchase. If Equilibrium is 100, you won't be able to buy enough to cause supply go below
+        # 0.75x - 75 units. Meaning the player can only buy from 0.75 ratio and above. However, the price calculations
         # still use of the total supply existing on the market
-        available_supply = supply - bracketed_pricing(equilibrium)[0]
+        internal_supply = True
+        available_supply = supply - bracketed_pricing(equilibrium)[0] if internal_supply else supply
         buy_goods = normalrandom.trade_good_distribution(available_supply, 7)
 
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
@@ -409,11 +479,10 @@ class Market:
         sell_price = sell_price * sell_ratio
         #print(sell_ratio)
 
-        print(buy_price * market_score, sell_price * market_score)
 
+        # BUY ORDERS
         buy_final_prices = []
         quality_modifiers = []
-        # BUY ORDERS
         buy_orders = []
         # print(quality_distribution)
         for i in range(7):
@@ -440,7 +509,10 @@ class Market:
 
         # get the minimum buying price to then establish a maximum selling price
         max_sell_final_price = min(buy_final_prices) - 1
-        print(f"Min:{max_sell_final_price}")
+
+        if verbose:
+            print(buy_price * market_score, sell_price * market_score)
+            print(f"Min:{max_sell_final_price}")
         #print(60 * market_score * buy_price, 60 * market_score * sell_price)
         sell_final_prices = []
 
@@ -456,7 +528,9 @@ class Market:
             ees[i].sell_orders.append(sell_order)
 
             #print(price_point)
-            print(f"{ees[i].name:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_final_prices[i]:>4}cr | "
+
+            if verbose:
+                print(f"{ees[i].name:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_final_prices[i]:>4}cr | "
                   f"Sell (x{sell_order.quantity:<5}) at {sell_final_prices[i]:>4}cr - Q:{buy_orders[i].quality}")
 
         if 0.75 < ratio < 1.25:
@@ -469,9 +543,10 @@ class Market:
         if ratio <= 0.2 or ratio >= 2:
             situation = "Major " + situation
 
-        print(f"Situation - {situation}")
-        print(f"Breakoffs - {bracketed_pricing(equilibrium)}")
-        print(f"Internal supply (unavailable for you): {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))}")
+        if verbose:
+            print(f"Situation - {situation}")
+            print(f"Breakoffs - {bracketed_pricing(equilibrium)}")
+            print(f"Internal supply (unavailable for you): {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))}")
 
         return ees
 
@@ -508,12 +583,12 @@ class OrderListing:
         self.quality = quality
 
     def get_price(self, modifiers=1, out_min=0.55, out_max=1.45, in_min=0.5, in_max=1.5):
-        return (main.inflation * main.trade_goods_base_prices[self.trade_good] *
+        return (inflation * trade_goods_base_prices[self.trade_good] *
                 map_range_max_clamped(self.price_point * modifiers, in_min, in_max, out_min, out_max))
         # final modifier will be mapped to the provided range.
         # meaning if we have a tighter price range, price will be together but rarely cut off from the limit.
 
-#
+"""
 ol1 = OrderListing("Technology Goods", 0.975, 100)
 ol2 = OrderListing("Technology Goods", 1.025, 200)
 ol3 = OrderListing("Technology Goods", 1.0, 50)
@@ -546,31 +621,29 @@ ee5 = EconomyEntity("Enterprise",
                     "Hyperion Devices",
                     [ol5], [sol5])
 
-trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1, [], [], 0.45, 500, 480)
 
 trade_statuses = {
-    main.trade_goods[0]: trade_status1,
-    main.trade_goods[1]: trade_status1,
-    main.trade_goods[2]: trade_status1,
-    main.trade_goods[3]: trade_status1,
-    main.trade_goods[4]: trade_status1,
-    main.trade_goods[5]: trade_status1,
-    main.trade_goods[6]: trade_status1,
-    main.trade_goods[7]: trade_status1,
-    main.trade_goods[8]: trade_status1,
-    main.trade_goods[9]: trade_status1,
-    main.trade_goods[10]: trade_status1,
-    main.trade_goods[11]: trade_status1,
-    main.trade_goods[12]: trade_status1,
-    main.trade_goods[13]: trade_status1,
-    main.trade_goods[14]: trade_status1,
+    trade_goods[0]: trade_status1,
+    trade_goods[1]: trade_status1,
+    trade_goods[2]: trade_status1,
+    trade_goods[3]: trade_status1,
+    trade_goods[4]: trade_status1,
+    trade_goods[5]: trade_status1,
+    trade_goods[6]: trade_status1,
+    trade_goods[7]: trade_status1,
+    trade_goods[8]: trade_status1,
+    trade_goods[9]: trade_status1,
+    trade_goods[10]: trade_status1,
+    trade_goods[11]: trade_status1,
+    trade_goods[12]: trade_status1,
+    trade_goods[13]: trade_status1,
+    trade_goods[14]: trade_status1,
 }
 
-market = Market("Planet A", 1000, [ee1, ee2, ee3, ee4, ee5], trade_statuses)
+#market = Market("Planet A", 1000, [ee1, ee2, ee3, ee4, ee5], trade_statuses)
 
-market.generate_new_ees()
-print()
-"""
+#market.generate_new_ees(False)
+
 market.trade_good_listing("Technology Goods")
 player_input = input("w to wait, q to quit :> ")
 while player_input.lower() != "q" or player_input.lower() != "quit" or player_input.lower() != "exit":
