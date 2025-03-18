@@ -15,24 +15,22 @@ Most important file is economy_entity.py
 
 Most important functions are: Market.generate_new_ees(), get_final_price_by_order, calculate_price_logistic, OrderListing.get_price
 
-Changes to SR:
-* In addition to legality of trade goods, they also have whether or not they're essential. Food and Medicine goods are essential for example and are more resistant to price changes across one Market.
-* Trade Goods have a Quality indicator. Higher quality goods are generally more expensive. When Selling, your trade goods need to be of a certain quality.
-* Trade goods can be purchased from different corporations and individuals with a small price spread between them.
-* More trade goods
-* Grouping same trade goods by price, place of origin and quality.
-
 Buying and selling price are determined by many factors such as: Inflation (Global), Market Score (highly developed planets have more expensive goods), Quality of Goods (from D to A), Daily Fluctuation and Market Events like deficits or sales.
 
 TODO:
 - Add user interaction in the form of commands
+- When Selling, your trade goods need to be of a certain quality.
+- In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
 - Passsage of time
 - Buying from one Market and selling it to another and see the changes in price
+- Add interaction with Trade Good Legality and Essential status
 - Bracketed Pricing - The price of goods changes after a certain quantity reaches a critical deficit or surplus point. Example: buying 100 units costs 20cr each. But buy 101 units and the 101st unit costs 25cr as well as every new unit beyond. Similar how it works in Starsector or X4.
-- Add some kind of supply chains where to produce certain goods you need others
+- Add more trade goods
 - Add random events where prices change
 - Add price adjustment over time to reflect new supply
-
+- Add some kind of supply chains where to produce certain goods you need others
+- Item grouping by price, place of origin and quality.
+  
 Market:
   A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
   - Collection of Economy Entities
