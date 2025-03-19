@@ -21,13 +21,13 @@ TODO:
 - Add user interaction in the form of commands
 - When Selling, your trade goods need to be of a certain quality.
 - In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
-- Passsage of time
+- Create different price ranges for each trade good
+- Passsage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
 - Bracketed Pricing - The price of goods changes after a certain quantity reaches a critical deficit or surplus point. Example: buying 100 units costs 20cr each. But buy 101 units and the 101st unit costs 25cr as well as every new unit beyond. Similar how it works in Starsector or X4.
 - Add more trade goods
 - Add random events where prices change
-- Add price adjustment over time to reflect new supply
 - Add some kind of supply chains where to produce certain goods you need others
 - Item grouping by price, place of origin and quality.
   
