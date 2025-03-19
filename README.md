@@ -15,13 +15,24 @@ Most important file is economy_entity.py
 
 Most important functions are: Market.generate_new_ees(), get_final_price_by_order, calculate_price_logistic, OrderListing.get_price
 
-Buying and selling price are determined by many factors such as: Inflation (Global), Market Score (highly developed planets have more expensive goods), Quality of Goods (from D to A), Daily Fluctuation and Market Events like deficits or sales.
+Buying and selling prices are determined by many factors such as:
+
+Global:
+  * Inflation   
+  * Trade Difficulty of Simulation
+  * Trade Good Base Price Range
+
+Market:
+  * Market Score (highly developed planets have more expensive goods)
+  * Quality of Goods (from D to A)
+  * Daily Fluctuation
+  * Market Events like deficits or sales.
+  * Supply and Demand
 
 TODO:
 - Add user interaction in the form of commands
 - When Selling, your trade goods need to be of a certain quality.
 - In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
-- Create different price ranges for each trade good
 - Passsage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
