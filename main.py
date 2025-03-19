@@ -23,6 +23,11 @@ for t in trade_goods_base_prices:
 """
 
 if __name__ == "__main__":
+    simulation_status = SimulationStatus()
+
+    trade_difficulty = int(input("Input a trade difficulty (1 - 10) > "))
+    calculate_price_ranges(trade_difficulty)
+
     # determine trade status, equilibrium quantity and current quantity
     equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
     supply = int(input("Input a Current Supply > "))  # 480

@@ -8,49 +8,8 @@ import normalrandom
 
 inflation = 1.0
 
-trade_goods = ["Organics", "Synthetics", "Common Minerals", "Rare Minerals", "Refined Minerals", "Essential Goods",
-               "Medicine", "Vice Goods", "Technology Goods", "Luxury Goods", "Weapons", "Narcotics",
-               "Equipment Parts", "Fuel", "Ammunition"]
-
-trade_goods_base_prices = {
-    trade_goods[0] :  17, #Organics
-    trade_goods[1] :  13, #Synthetics
-    trade_goods[2] :  9,  #Common Minerals
-    trade_goods[3]:   40, #Rare Minerals
-    trade_goods[4] :  20, #Refined Minerals
-    trade_goods[5] :  22, #Essential Goods
-    trade_goods[6] :  30, #Medicine
-    trade_goods[7] :  30, #Vice Goods
-    trade_goods[8] :  60, #Technology Goods
-    trade_goods[9] :  150,#Luxury Goods
-    trade_goods[10] : 75, #Weapons
-    trade_goods[11] : 300,#Recreational Drugs
-    trade_goods[12] : 90, #Equipment Parts
-    trade_goods[13] : 10, #Fuel
-    trade_goods[14] : 15, #Ammunition
-}
-
-# higher values = higher profit margins
-trade_goods_base_ranges = {
-    trade_goods[0] :  0.40, #Organics
-    trade_goods[1] :  0.35, #Synthetics
-    trade_goods[2] :  0.60, #Common Minerals
-    trade_goods[3]:   0.50, #Rare Minerals
-    trade_goods[4] :  0.40, #Refined Minerals
-    trade_goods[5] :  0.50, #Essential Goods
-    trade_goods[6] :  0.40, #Medicine
-    trade_goods[7] :  0.40, #Vice Goods
-    trade_goods[8] :  0.30, #Technology Goods
-    trade_goods[9] :  0.25, #Luxury Goods
-    trade_goods[10] : 0.33, #Weapons
-    trade_goods[11] : 0.45, #Narcotics
-    trade_goods[12] : 0.20, #Equipment Parts
-    trade_goods[13] : 0.10, #Fuel
-    trade_goods[14] : 0.15, #Ammunition
-}
-
-# TODO: replace uses of the 3 variables above with this one
-trade_goods_data = {
+# static
+TRADE_GOODS_DATA = {
     "Organics":         {"base_price": 17,  "base_range": 0.40},
     "Synthetics":       {"base_price": 13,  "base_range": 0.35},
     "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
@@ -64,26 +23,73 @@ trade_goods_data = {
     "Weapons":          {"base_price": 75,  "base_range": 0.33},
     "Narcotics":        {"base_price": 300, "base_range": 0.45},
     "Equipment Parts":  {"base_price": 90,  "base_range": 0.20},
-    "Fuel":             {"base_price": 10,  "base_range": 0.10},
+    "Fuel":             {"base_price": 10,  "base_range": 0.30},
     "Ammunition":       {"base_price": 15,  "base_range": 0.15},
 }
 
-# Minimum and maximum price points that can happen across every market
-# increments of 0.2 / 9
-# TODO: remove this and replace it with a global trade good status that applies the price range to all markets. As well
-# as removing the price range from market trade good status
-price_distributions = [
-    (0.55, 1.45),   #50%  0
-    (0.572, 1.428), #100% 1
-    (0.594, 1.405), #150  2
-    (0.617, 1.383), #200% 3
-    (0.638, 1.361), #250% 4
-    (0.661, 1.339), #300% 5
-    (0.683, 1.317), #350% 6
-    (0.705, 1.294), #400% 7
-    (0.728, 1.272), #450% 8
-    (0.75, 1.25)    #500% 9
-]
+class SimulationStatus(object):
+    # Singleton
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(SimulationStatus, cls).__new__(cls)
+        return cls.instance
+
+    TRADE_GOODS_DATA = {
+        "Organics":         {"base_price": 17,  "base_range": 0.40},
+        "Synthetics":       {"base_price": 13,  "base_range": 0.35},
+        "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
+        "Rare Minerals":    {"base_price": 40,  "base_range": 0.50},
+        "Refined Minerals": {"base_price": 20,  "base_range": 0.40},
+        "Essential Goods":  {"base_price": 22,  "base_range": 0.50},
+        "Medicine":         {"base_price": 30,  "base_range": 0.40},
+        "Vice Goods":       {"base_price": 30,  "base_range": 0.40},
+        "Technology Goods": {"base_price": 60,  "base_range": 0.30},
+        "Luxury Goods":     {"base_price": 150, "base_range": 0.25},
+        "Weapons":          {"base_price": 75,  "base_range": 0.33},
+        "Narcotics":        {"base_price": 300, "base_range": 0.45},
+        "Equipment Parts":  {"base_price": 90,  "base_range": 0.20},
+        "Fuel":             {"base_price": 10,  "base_range": 0.30},
+        "Ammunition":       {"base_price": 15,  "base_range": 0.15},
+    }
+
+    # changes based on trade difficulty
+    global_trade_good_status = {
+        "Organics": {"price_range": 0.40},
+        "Synthetics": {"price_range": 0.35},
+        "Common Minerals": {"price_range": 0.60},
+        "Rare Minerals": {"price_range": 0.50},
+        "Refined Minerals": {"price_range": 0.40},
+        "Essential Goods": {"price_range": 0.50},
+        "Medicine": {"price_range": 0.40},
+        "Vice Goods": {"price_range": 0.40},
+        "Technology Goods": {"price_range": 0.30},
+        "Luxury Goods": {"price_range": 0.25},
+        "Weapons": {"price_range": 0.33},
+        "Narcotics": {"price_range": 0.45},
+        "Equipment Parts": {"price_range": 0.20},
+        "Fuel": {"price_range": 0.30},
+        "Ammunition": {"price_range": 0.15},
+    }
+
+    inflation = 1.0
+
+global_trade_good_status = {
+    "Organics":         {"price_range": TRADE_GOODS_DATA["Organics"]["base_range"]},
+    "Synthetics":       {"price_range": TRADE_GOODS_DATA["Synthetics"]["base_range"]},
+    "Common Minerals":  {"price_range": TRADE_GOODS_DATA["Common Minerals"]["base_range"]},
+    "Rare Minerals":    {"price_range": TRADE_GOODS_DATA["Rare Minerals"]["base_range"]},
+    "Refined Minerals": {"price_range": TRADE_GOODS_DATA["Refined Minerals"]["base_range"]},
+    "Essential Goods":  {"price_range": TRADE_GOODS_DATA["Essential Goods"]["base_range"]},
+    "Medicine":         {"price_range": TRADE_GOODS_DATA["Medicine"]["base_range"]},
+    "Vice Goods":       {"price_range": TRADE_GOODS_DATA["Vice Goods"]["base_range"]},
+    "Technology Goods": {"price_range": TRADE_GOODS_DATA["Technology Goods"]["base_range"]},
+    "Luxury Goods":     {"price_range": TRADE_GOODS_DATA["Luxury Goods"]["base_range"]},
+    "Weapons":          {"price_range": TRADE_GOODS_DATA["Weapons"]["base_range"]},
+    "Narcotics":        {"price_range": TRADE_GOODS_DATA["Narcotics"]["base_range"]},
+    "Equipment Parts":  {"price_range": TRADE_GOODS_DATA["Equipment Parts"]["base_range"]},
+    "Fuel":             {"price_range": TRADE_GOODS_DATA["Fuel"]["base_range"]},
+    "Ammunition":       {"price_range": TRADE_GOODS_DATA["Ammunition"]["base_range"]},
+}
 
 def clamp(value, lower, upper):
     """
@@ -147,7 +153,7 @@ def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k
 
 class TradeGoodStatus:
     def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
-                 price_range, equilibrium_quantity, quantity):
+                 equilibrium_quantity, quantity):
         """
         A status for a trade good that applies to an entire market
 
@@ -158,7 +164,6 @@ class TradeGoodStatus:
         :param buy_modifiers: list of floats, modifiers like random sell-off or deficit event.
         Both this and fluctuation value are all added multiplicatively to the final value.
         :param sell_modifiers: same but for selling
-        :param price_range:
         :param equilibrium_quantity: the total quantity at which the price becomes base price. this value influences
         the final price through a supply and demand logistical function
         """
@@ -168,7 +173,7 @@ class TradeGoodStatus:
         self.daily_fluctuation = daily_fluctuation
         self.buy_modifiers = buy_modifiers
         self.sell_modifiers = sell_modifiers
-        self.price_range = price_range
+        #self.price_range = price_range
         self.equilibrium_quantity = equilibrium_quantity
         self.quantity = quantity
 
@@ -236,14 +241,19 @@ def bracketed_pricing(equilibrium):
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
     return round(0.75 * equilibrium), round(0.2 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
 
+def calculate_price_ranges(trade_difficulty):
+    max_difficulty_penalty = 0.5  # maximum reduction in price ranges at hardest difficulty
 
-def get_price_range(trade_good, trade_difficulty):
-    # higher trade difficulties (value from 1 to 10) = lower profit margins
-    # basically we scale the base trade good price range multiplied by the max difficulty penalty
-    price_range = trade_goods_data[trade_good]["base_range"]
-    max_difficulty_penalty = 0.5 #maximum reduction in price ranges at hardest difficulty
+    max_difficulty = 10
+    min_difficulty = 1
 
-    return price_range * (1 - ((trade_difficulty - 1)/(10 - 1)) * (1.0 - max_difficulty_penalty))
+    for trade_good in global_trade_good_status:
+        # higher trade difficulties (value from 1 to 10) = lower profit margins
+        base_range = global_trade_good_status[trade_good]["price_range"]
+
+        # in essence, this is a sliding value from max_difficulty_penalty to 1.0 based on the trade difficulty selected
+        global_trade_good_status[trade_good]["price_range"] = (base_range *
+            (1.0 - ((trade_difficulty - min_difficulty) / (max_difficulty - min_difficulty)) * (1.0 - max_difficulty_penalty)))
 
 
 class Market:
@@ -278,7 +288,7 @@ class Market:
         return order_listings
 
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
-        price_range = self.trade_good_status[trade_good].price_range
+        price_range = global_trade_good_status[trade_good]["price_range"]
 
         if operation == "Buy":
             return round(order_listing.get_price(self.trade_good_status[trade_good].get_buy_modifier(), 1 - price_range,
@@ -417,70 +427,32 @@ class Market:
     def quick_summary(self):
         return
 
-    def get_maximum_selling_price_point(self, max_buying_price, trade_good):
-        """
-        Determines the maximum price point from a worst case scenario
-        :param max_buying_price: Maximum value where max_buying_price is < round(min(buying_prices))
-        So if we have the lowest value 60, the worst case is 59.49999999...
-        :param trade_good:
-        :return:
-        """
-        max_fluctuation = self.trade_good_status[trade_good].max_fluctuation
-        base_price = trade_goods_base_prices[trade_good]
-        modifiers = ((1 + max_fluctuation) *
-                     (math.prod(self.trade_good_status[trade_good].sell_modifiers)
-                      if self.trade_good_status[trade_good].sell_modifiers else 1))
-
-        price_point = max_buying_price / (base_price * inflation * modifiers)
-
-        # return round(price * self.trade_good_status[trade_good].get_buy_modifier(mul))
-
-        order_test = OrderListing(trade_good, price_point, 100)
-        price_test = self.get_final_price_by_order(order_test, trade_good, "Sell")
-        print(price_test)
-
-        return price_point
-
     @staticmethod
     def generate_market(market_name, equilibrium, supply, market_score, price_range_index):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
-                                        [], [], 0.45, 500, 480)
+                                        [], [], 500, 480)
 
-        temp_trade_statuses = {
-            trade_goods[0]: trade_status1,
-            trade_goods[1]: trade_status1,
-            trade_goods[2]: trade_status1,
-            trade_goods[3]: trade_status1,
-            trade_goods[4]: trade_status1,
-            trade_goods[5]: trade_status1,
-            trade_goods[6]: trade_status1,
-            trade_goods[7]: trade_status1,
-            trade_goods[8]: trade_status1,
-            trade_goods[9]: trade_status1,
-            trade_goods[10]: trade_status1,
-            trade_goods[11]: trade_status1,
-            trade_goods[12]: trade_status1,
-            trade_goods[13]: trade_status1,
-            trade_goods[14]: trade_status1,
-        }
+        temp_trade_statuses = {}
+
+        for trade_good in TRADE_GOODS_DATA:
+            temp_trade_statuses[trade_good] = trade_status1
+
 
         temp = Market(market_name, market_score, [], temp_trade_statuses)
         ees = temp.generate_new_ees(equilibrium, supply, market_score, price_range_index, True)
         temp.economy_entities = ees
         return temp
 
-    def generate_new_ees(self, equilibrium, supply, market_score, price_range_index, verbose=True):
-        # for now just try one trade good "Technology Goods"
+    def generate_new_ees(self, equilibrium, supply, market_score, trade_difficulty=1, verbose=True):
 
-
-        # price point ranges
-        # price_range = 0 #0 - 9
-        floor, ceil = price_distributions[price_range_index][0], price_distributions[price_range_index][1]
-
+        # TODO: create EEs for all of the remaining trade goods, figure out how to get names of corporations too.
+        # for trade_good in TRADE_GOODS_DATA:
 
         tg = "Technology Goods"
+        price_range = global_trade_good_status[tg]["price_range"]
+        floor, ceil = 1 - price_range, 1 + price_range
         temp_status = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
-                                      [], [], ceil - 1, equilibrium, supply)
+                                      [], [], equilibrium, supply)
 
         self.trade_good_status[tg] = temp_status
 
@@ -589,7 +561,7 @@ class Market:
         if verbose:
             print(f"Situation - {situation}")
             print(f"Breakoffs - {bracketed_pricing(equilibrium)}")
-            print(f"Internal supply (unavailable for you): {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))}")
+            print(f"Available for export: {available_supply} | Internal supply: {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))} | Total: {supply}")
 
         return ees
 
@@ -626,10 +598,9 @@ class OrderListing:
         self.quality = quality
 
     def get_price(self, modifiers=1, out_min=0.55, out_max=1.45, in_min=0.5, in_max=1.5):
-        return (inflation * trade_goods_base_prices[self.trade_good] *
-                map_range_max_clamped(self.price_point * modifiers, in_min, in_max, out_min, out_max))
-        # final modifier will be mapped to the provided range.
-        # meaning if we have a tighter price range, price will be together but rarely cut off from the limit.
+        return inflation * TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
+                #experimenting without clamping any values since logistic function by itself kinda does this
+                #map_range_max_clamped(, in_min, in_max, out_min, out_max))\
 
 """
 ol1 = OrderListing("Technology Goods", 0.975, 100)
