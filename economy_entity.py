@@ -8,10 +8,9 @@ import normalrandom
 
 inflation = 1.0
 
-trade_goods = ["Organics", "Synthetics", "Common Minerals", "Rare Minerals",
-    "Refined Minerals", "Supplies", "Medicine", "Vice Goods", "Technology Goods",
-    "Luxury Goods", "Weapons", "Recreational Drugs", "Equipment Parts", "Fuel",
-    "Ammunition"]
+trade_goods = ["Organics", "Synthetics", "Common Minerals", "Rare Minerals", "Refined Minerals", "Essential Goods",
+               "Medicine", "Vice Goods", "Technology Goods", "Luxury Goods", "Weapons", "Narcotics",
+               "Equipment Parts", "Fuel", "Ammunition"]
 
 trade_goods_base_prices = {
     trade_goods[0] :  17, #Organics
@@ -19,7 +18,7 @@ trade_goods_base_prices = {
     trade_goods[2] :  9,  #Common Minerals
     trade_goods[3]:   40, #Rare Minerals
     trade_goods[4] :  20, #Refined Minerals
-    trade_goods[5] :  22, #Supplies
+    trade_goods[5] :  22, #Essential Goods
     trade_goods[6] :  30, #Medicine
     trade_goods[7] :  30, #Vice Goods
     trade_goods[8] :  60, #Technology Goods
@@ -31,8 +30,48 @@ trade_goods_base_prices = {
     trade_goods[14] : 15, #Ammunition
 }
 
+# higher values = higher profit margins
+trade_goods_base_ranges = {
+    trade_goods[0] :  0.40, #Organics
+    trade_goods[1] :  0.35, #Synthetics
+    trade_goods[2] :  0.60, #Common Minerals
+    trade_goods[3]:   0.50, #Rare Minerals
+    trade_goods[4] :  0.40, #Refined Minerals
+    trade_goods[5] :  0.50, #Essential Goods
+    trade_goods[6] :  0.40, #Medicine
+    trade_goods[7] :  0.40, #Vice Goods
+    trade_goods[8] :  0.30, #Technology Goods
+    trade_goods[9] :  0.25, #Luxury Goods
+    trade_goods[10] : 0.33, #Weapons
+    trade_goods[11] : 0.45, #Narcotics
+    trade_goods[12] : 0.20, #Equipment Parts
+    trade_goods[13] : 0.10, #Fuel
+    trade_goods[14] : 0.15, #Ammunition
+}
+
+# TODO: replace uses of the 3 variables above with this one
+trade_goods_data = {
+    "Organics":         {"base_price": 17,  "base_range": 0.40},
+    "Synthetics":       {"base_price": 13,  "base_range": 0.35},
+    "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
+    "Rare Minerals":    {"base_price": 40,  "base_range": 0.50},
+    "Refined Minerals": {"base_price": 20,  "base_range": 0.40},
+    "Essential Goods":  {"base_price": 22,  "base_range": 0.50},
+    "Medicine":         {"base_price": 30,  "base_range": 0.40},
+    "Vice Goods":       {"base_price": 30,  "base_range": 0.40},
+    "Technology Goods": {"base_price": 60,  "base_range": 0.30},
+    "Luxury Goods":     {"base_price": 150, "base_range": 0.25},
+    "Weapons":          {"base_price": 75,  "base_range": 0.33},
+    "Narcotics":        {"base_price": 300, "base_range": 0.45},
+    "Equipment Parts":  {"base_price": 90,  "base_range": 0.20},
+    "Fuel":             {"base_price": 10,  "base_range": 0.10},
+    "Ammunition":       {"base_price": 15,  "base_range": 0.15},
+}
+
 # Minimum and maximum price points that can happen across every market
 # increments of 0.2 / 9
+# TODO: remove this and replace it with a global trade good status that applies the price range to all markets. As well
+# as removing the price range from market trade good status
 price_distributions = [
     (0.55, 1.45),   #50%  0
     (0.572, 1.428), #100% 1
@@ -196,6 +235,15 @@ def bracketed_pricing(equilibrium):
     # The market will still gradually adjust their prices over time.
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
     return round(0.75 * equilibrium), round(0.2 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
+
+
+def get_price_range(trade_good, trade_difficulty):
+    # higher trade difficulties (value from 1 to 10) = lower profit margins
+    # basically we scale the base trade good price range multiplied by the max difficulty penalty
+    price_range = trade_goods_data[trade_good]["base_range"]
+    max_difficulty_penalty = 0.5 #maximum reduction in price ranges at hardest difficulty
+
+    return price_range * (1 - ((trade_difficulty - 1)/(10 - 1)) * (1.0 - max_difficulty_penalty))
 
 
 class Market:
@@ -394,7 +442,7 @@ class Market:
         return price_point
 
     @staticmethod
-    def generate_market(market_name, equilibrium, supply, market_score, price_range):
+    def generate_market(market_name, equilibrium, supply, market_score, price_range_index):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
                                         [], [], 0.45, 500, 480)
 
@@ -417,22 +465,17 @@ class Market:
         }
 
         temp = Market(market_name, market_score, [], temp_trade_statuses)
-        ees = temp.generate_new_ees(equilibrium, supply, market_score, price_range, True)
+        ees = temp.generate_new_ees(equilibrium, supply, market_score, price_range_index, True)
         temp.economy_entities = ees
         return temp
 
-    def generate_new_ees(self, equilibrium, supply, market_score, price_range, verbose=True):
+    def generate_new_ees(self, equilibrium, supply, market_score, price_range_index, verbose=True):
         # for now just try one trade good "Technology Goods"
-        # determine trade status, equilibrium quantity and current quantity
-        #equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
-        #supply = int(input("Input a Current Supply > "))  # 480
 
-        # market score determines development level, highly developed markets's goods are more expensive
-        #market_score = float(input("Input a market score (0.8x - 1.2x) > "))
 
         # price point ranges
         # price_range = 0 #0 - 9
-        floor, ceil = price_distributions[price_range][0], price_distributions[price_range][1]
+        floor, ceil = price_distributions[price_range_index][0], price_distributions[price_range_index][1]
 
 
         tg = "Technology Goods"

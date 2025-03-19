@@ -23,4 +23,10 @@ for t in trade_goods_base_prices:
 """
 
 if __name__ == "__main__":
-    market = Market.generate_market("Planet", 500, 480, 1, 0)
+    # determine trade status, equilibrium quantity and current quantity
+    equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
+    supply = int(input("Input a Current Supply > "))  # 480
+
+    # market score determines development level, highly developed markets's goods are more expensive
+    market_score = float(input("Input a market score (0.8x - 1.2x) > "))
+    market = Market.generate_market("Planet", equilibrium, supply, market_score, 0)
