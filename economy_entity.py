@@ -586,17 +586,15 @@ class Market:
 
             # Calculate weighted average price - buying
             buy_weighted_average_price = sum(
-                (q / buy_total_quantity) * p for p, q in valid_buy_orders) if valid_buy_orders else 0
+                (q / buy_total_quantity) * p for p, q in valid_buy_orders) if valid_buy_orders else \
+                    (sum(p for p, _ in buy_stuff) / len(buy_stuff))
             buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
 
             # Calculate weighted average price - selling
             sell_weighted_average_price = sum(
-                (q / sell_total_quantity) * p for p, q in valid_sell_orders) if valid_sell_orders else 0
+                (q / sell_total_quantity) * p for p, q in valid_sell_orders) if valid_sell_orders else \
+                    (sum(p for p, _ in sell_stuff) / len(sell_stuff))
             sell_weighted_average_price = str(round(sell_weighted_average_price)) + "cr"
-
-            # Finding min buy price and max sell price, ignoring zero-quantity orders
-            valid_buy_orders = [(p, q) for p, q in buy_stuff if q > 0]
-            valid_sell_orders = [(p, q) for p, q in sell_stuff if q > 0]
 
             if valid_buy_orders:
                 min_buy_price = min(valid_buy_orders)[0]
