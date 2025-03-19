@@ -35,3 +35,13 @@ if __name__ == "__main__":
     # market score determines development level, highly developed markets's goods are more expensive
     market_score = float(input("Input a market score (0.8x - 1.2x) > "))
     market = Market.generate_market("Planet", equilibrium, supply, market_score, 0)
+
+    player_input = input("w to wait, q to quit :> ")
+    while player_input.lower() != "q" or player_input.lower() != "quit" or player_input.lower() != "exit":
+        if player_input.lower() == "w" or player_input.lower() == "wait":
+            print("\n" * 10)
+            market.recalculate_prices()
+            market.trade_good_listing("Technology Goods")
+            print(market.trade_good_status["Technology Goods"].daily_fluctuation)
+            player_input = input("w to wait, q to quit :> ")
+    # market.summary_listing("Technology Goods")

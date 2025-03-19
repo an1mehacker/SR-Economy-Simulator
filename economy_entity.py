@@ -173,9 +173,15 @@ class TradeGoodStatus:
         self.daily_fluctuation = daily_fluctuation
         self.buy_modifiers = buy_modifiers
         self.sell_modifiers = sell_modifiers
-        #self.price_range = price_range
         self.equilibrium_quantity = equilibrium_quantity
         self.quantity = quantity
+
+        # for display
+        self.available_supply = 0
+        self.average_buy_price = 0
+        self.average_sell_price = 0
+        self.min_buy_price = 0
+        self.max_sell_price = 0
 
     def calculate_new_daily_fluctuation(self):
         self.daily_fluctuation = random.uniform(1 - self.max_fluctuation, 1 + self.max_fluctuation)
@@ -472,6 +478,8 @@ class Market:
         available_supply = supply - bracketed_pricing(equilibrium)[0] if internal_supply else supply
         buy_goods = normalrandom.trade_good_distribution(available_supply, 7)
 
+        self.trade_good_status[tg].available_supply = available_supply
+
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
                  'Voidware Devices',
                  'Inilai Electronics', 'Interstellar Circuits']
@@ -520,6 +528,7 @@ class Market:
         # the spread is more smoothed out to give the largest producers still a fair amount with spread = 0.4
         sell_goods = normalrandom.trade_good_distribution(2 * equilibrium - supply, 7, 0.4)
         sell_goods.reverse()
+        sell_orders = []
         # print(sell_goods)
 
         # get the minimum buying price to then establish a maximum selling price
@@ -538,6 +547,7 @@ class Market:
             price_point = sell_price * quality_modifiers[i] * market_score
 
             sell_order = OrderListing(tg, price_point, sell_goods[i], quality_distribution[i])
+            sell_orders.append(sell_order)
             sell_final_prices.append(self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price))
              #print(sell_order.get_price(1, floor, ceil))
             ees[i].sell_orders.append(sell_order)
@@ -562,6 +572,54 @@ class Market:
             print(f"Situation - {situation}")
             print(f"Breakoffs - {bracketed_pricing(equilibrium)}")
             print(f"Available for export: {available_supply} | Internal supply: {bracketed_pricing(equilibrium)[0] - abs(min(0, available_supply))} | Total: {supply}")
+
+            buy_stuff = list(zip(buy_final_prices, buy_goods))
+            sell_stuff = list(zip(sell_final_prices, sell_goods))
+
+            # Filter out invalid (zero-quantity) orders for correct total quantity calculation
+            valid_buy_orders = [(p, q) for p, q in buy_stuff if q > 0]
+            valid_sell_orders = [(p, q) for p, q in sell_stuff if q > 0]
+
+            # Calculate total valid quantities
+            buy_total_quantity = sum(q for _, q in valid_buy_orders) if valid_buy_orders else 1
+            sell_total_quantity = sum(q for _, q in valid_sell_orders) if valid_sell_orders else 1
+
+            # Calculate weighted average price - buying
+            buy_weighted_average_price = sum(
+                (q / buy_total_quantity) * p for p, q in valid_buy_orders) if valid_buy_orders else 0
+            buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
+
+            # Calculate weighted average price - selling
+            sell_weighted_average_price = sum(
+                (q / sell_total_quantity) * p for p, q in valid_sell_orders) if valid_sell_orders else 0
+            sell_weighted_average_price = str(round(sell_weighted_average_price)) + "cr"
+
+            # Finding min buy price and max sell price, ignoring zero-quantity orders
+            valid_buy_orders = [(p, q) for p, q in buy_stuff if q > 0]
+            valid_sell_orders = [(p, q) for p, q in sell_stuff if q > 0]
+
+            if valid_buy_orders:
+                min_buy_price = min(valid_buy_orders)[0]
+                min_buy_quantity = sum(q for p, q in valid_buy_orders if p == min_buy_price)
+            else:
+                min_buy_price, min_buy_quantity = min(buy_stuff)[0], 0
+
+            if valid_sell_orders:
+                max_sell_price = max(valid_sell_orders)[0]
+                max_sell_quantity = sum(q for p, q in valid_sell_orders if p == max_sell_price)
+            else:
+                max_sell_price, max_sell_quantity = max(sell_stuff)[0], 0
+
+            min_buy_price = str(min_buy_price) + "cr"
+            max_sell_price = str(max_sell_price) + "cr"
+
+            print(f"Average prices: {buy_weighted_average_price}/{sell_weighted_average_price} "
+                  f"| Min buy: {min_buy_price} (x{min_buy_quantity}) | Max sell: {max_sell_price} (x{max_sell_quantity})")
+
+
+
+
+
 
         return ees
 
