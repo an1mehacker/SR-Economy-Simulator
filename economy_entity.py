@@ -6,27 +6,6 @@ from hashlib import algorithms_available
 from prettytable import PrettyTable
 import normalrandom
 
-inflation = 1.0
-
-# static
-TRADE_GOODS_DATA = {
-    "Organics":         {"base_price": 17,  "base_range": 0.40},
-    "Synthetics":       {"base_price": 13,  "base_range": 0.35},
-    "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
-    "Rare Minerals":    {"base_price": 40,  "base_range": 0.50},
-    "Refined Minerals": {"base_price": 20,  "base_range": 0.40},
-    "Essential Goods":  {"base_price": 22,  "base_range": 0.50},
-    "Medicine":         {"base_price": 30,  "base_range": 0.40},
-    "Vice Goods":       {"base_price": 30,  "base_range": 0.40},
-    "Technology Goods": {"base_price": 60,  "base_range": 0.30},
-    "Luxury Goods":     {"base_price": 150, "base_range": 0.25},
-    "Weapons":          {"base_price": 75,  "base_range": 0.33},
-    "Narcotics":        {"base_price": 300, "base_range": 0.45},
-    "Equipment Parts":  {"base_price": 90,  "base_range": 0.20},
-    "Fuel":             {"base_price": 10,  "base_range": 0.30},
-    "Ammunition":       {"base_price": 15,  "base_range": 0.15},
-}
-
 class SimulationStatus(object):
     # Singleton
     def __new__(cls):
@@ -54,74 +33,17 @@ class SimulationStatus(object):
 
     # changes based on trade difficulty
     global_trade_good_status = {
-        "Organics": {"price_range": 0.40},
-        "Synthetics": {"price_range": 0.35},
-        "Common Minerals": {"price_range": 0.60},
-        "Rare Minerals": {"price_range": 0.50},
-        "Refined Minerals": {"price_range": 0.40},
-        "Essential Goods": {"price_range": 0.50},
-        "Medicine": {"price_range": 0.40},
-        "Vice Goods": {"price_range": 0.40},
-        "Technology Goods": {"price_range": 0.30},
-        "Luxury Goods": {"price_range": 0.25},
-        "Weapons": {"price_range": 0.33},
-        "Narcotics": {"price_range": 0.45},
-        "Equipment Parts": {"price_range": 0.20},
-        "Fuel": {"price_range": 0.30},
-        "Ammunition": {"price_range": 0.15},
+        key: {"price_range": value["base_range"]}
+        for key, value in TRADE_GOODS_DATA.items()
     }
+    print(global_trade_good_status)
 
+    trade_difficulty = 1
     inflation = 1.0
-
-global_trade_good_status = {
-    "Organics":         {"price_range": TRADE_GOODS_DATA["Organics"]["base_range"]},
-    "Synthetics":       {"price_range": TRADE_GOODS_DATA["Synthetics"]["base_range"]},
-    "Common Minerals":  {"price_range": TRADE_GOODS_DATA["Common Minerals"]["base_range"]},
-    "Rare Minerals":    {"price_range": TRADE_GOODS_DATA["Rare Minerals"]["base_range"]},
-    "Refined Minerals": {"price_range": TRADE_GOODS_DATA["Refined Minerals"]["base_range"]},
-    "Essential Goods":  {"price_range": TRADE_GOODS_DATA["Essential Goods"]["base_range"]},
-    "Medicine":         {"price_range": TRADE_GOODS_DATA["Medicine"]["base_range"]},
-    "Vice Goods":       {"price_range": TRADE_GOODS_DATA["Vice Goods"]["base_range"]},
-    "Technology Goods": {"price_range": TRADE_GOODS_DATA["Technology Goods"]["base_range"]},
-    "Luxury Goods":     {"price_range": TRADE_GOODS_DATA["Luxury Goods"]["base_range"]},
-    "Weapons":          {"price_range": TRADE_GOODS_DATA["Weapons"]["base_range"]},
-    "Narcotics":        {"price_range": TRADE_GOODS_DATA["Narcotics"]["base_range"]},
-    "Equipment Parts":  {"price_range": TRADE_GOODS_DATA["Equipment Parts"]["base_range"]},
-    "Fuel":             {"price_range": TRADE_GOODS_DATA["Fuel"]["base_range"]},
-    "Ammunition":       {"price_range": TRADE_GOODS_DATA["Ammunition"]["base_range"]},
-}
-
-def clamp(value, lower, upper):
-    """
-    Returns a value between lower and upper bounded
-    :param value:
-    :param lower:
-    :param upper:
-    :return:
-    """
-    return lower if value < lower else upper if value > upper else value
-
-
-def map_range_max_clamped(value, in_min, in_max, out_min, out_max):
-    """
-    Maps a value from one range to another while clamping it to the input range.
-
-    :param value: float - The input value to be mapped.
-    :param in_min: float - The minimum value of the input range.
-    :param in_max: float - The maximum value of the input range.
-    :param out_min: float - The minimum value of the output range.
-    :param out_max: float - The maximum value of the output range.
-    :return: float - The mapped and clamped value in the output range.
-    """
-    # Clamp the value within the input range
-    clamped_value = min(value, in_max) #clamp(value, in_min, in_max)
-
-    # Normalize and map the value to the output range
-    return out_min + (clamped_value - in_min) * (out_max - out_min) / (in_max - in_min)
-
+    days_elapsed = 0 #we increase inflation every day until we reach 4.0 at 10 000 days
 
 def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
-                             max_sell_discount=0.98, sell_k=5):
+                             max_sell_discount=0.98, sell_k=10):
     """
     Calculates the price point of a commodity based on a logistic supply-demand curve.
     Works well with high supply or negative values.
@@ -130,11 +52,11 @@ def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k
     :param max_multiplier: float - The highest price multiplier at maximum deficit.
     :param supply_ratio: Current Supply divided by Equilibrium Supply
     :param buy_k: float - Steepness of the curve (higher values create sharper price transitions).
-    Recommend a value of 0.75
+    Recommend a value of 0.75 - 1.5
     :param min_sell_discount: float - The lowest discount (widest gap in surplus).
     :param max_sell_discount: float - The highest discount (smallest gap in deficit).
     :param sell_k: Similar to buy_k, tends to approach min and max_sell_discount when at low and high supply resp.
-    Recommend a value of 5
+    Recommend a value of 5 to 10
 
     :return: float - The adjusted buy and sell price of the commodity.
     """
@@ -146,8 +68,6 @@ def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k
             1 + math.exp(-sell_k * (1 - supply_ratio)))
 
 
-
-    # print(sell_discount)
     return buy_logistic_multiplier, buy_logistic_multiplier * sell_discount
 
 
@@ -242,12 +162,13 @@ def get_quality_price_multiplier(base_price, quality):
 def bracketed_pricing(equilibrium):
     # Get breakoff quantity values at 0.75, 0.2, 1.25 and 2
     # Any time those supply ratios are exceeded whether by buying or selling, the prices immediately recalculate
-    # in respect to the operation
-    # The market will still gradually adjust their prices over time.
+    # in respect to the operation meaning We buy, only buy price gets recalculated, sell, only sell prices etc etc
+    # The market will still gradually adjust their prices over a period of 60-70 days.
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
     return round(0.75 * equilibrium), round(0.2 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
 
 def calculate_price_ranges(trade_difficulty):
+    global_trade_good_status = SimulationStatus().global_trade_good_status
     max_difficulty_penalty = 0.5  # maximum reduction in price ranges at hardest difficulty
 
     max_difficulty = 10
@@ -294,7 +215,7 @@ class Market:
         return order_listings
 
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
-        price_range = global_trade_good_status[trade_good]["price_range"]
+        price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
 
         if operation == "Buy":
             return round(order_listing.get_price(self.trade_good_status[trade_good].get_buy_modifier(), 1 - price_range,
@@ -306,141 +227,19 @@ class Market:
             return min(price, min_buy_price)
         # maybe instead of 0.5-1.5 use the actual price points idk
 
-    def get_final_price_by_value(self, price, trade_good, operation):
-        if operation == "Buy":
-            return round(price * self.trade_good_status[trade_good].get_buy_modifier())
-        elif operation == "Sell":
-            return round(price * self.trade_good_status[trade_good].get_sell_modifier())
-
-    def summary_listing(self, trade_good, display=True):
-        # average price - buying
-        buy_weighted_average_price = 0
-        buy_orders = self.get_all_order_listings_by_trade_good(trade_good, "Buy")
-        buy_quantity_total = sum(order.quantity for order in buy_orders)
-        self.trade_good_status[trade_good].quantity = buy_quantity_total
-
-        for buy_order in buy_orders:
-            # market share
-            market_share = buy_order.quantity / buy_quantity_total
-            # price
-            buy_weighted_average_price = buy_weighted_average_price + (market_share * buy_order.get_price())
-
-        buy_weighted_average_price = self.get_final_price_by_value(buy_weighted_average_price, trade_good, "Buy")
-
-        # average price - selling
-        sell_weighted_average_price = 0
-        sell_orders = self.get_all_order_listings_by_trade_good(trade_good, "Sell")
-        sell_quantity_total = sum(order.quantity for order in sell_orders)
-
-        for sell_order in sell_orders:
-            # market share
-            market_share = sell_order.quantity / sell_quantity_total
-            # price
-            sell_weighted_average_price = sell_weighted_average_price + (market_share * sell_order.get_price())
-
-        sell_weighted_average_price = self.get_final_price_by_value(sell_weighted_average_price, trade_good, "Sell")
-
-        # Max and Min
-        min_buy_order = min(buy_orders, key=lambda order: order.get_price())
-        max_sell_order = max(sell_orders, key=lambda order: order.get_price())
-        buy_minimum_price = self.get_final_price_by_order(min_buy_order, trade_good, "Buy")
-        sell_maximum_price = self.get_final_price_by_order(max_sell_order, trade_good, "Sell")
-
-        text = (
-        (f"# {trade_good:<20} Available to buy: x{buy_quantity_total} at ~{round(buy_weighted_average_price)}cr --- "
-         f"Available to sell x{sell_quantity_total} at ~{round(sell_weighted_average_price)}cr --- "
-         f"Min/Buy at {buy_minimum_price}cr (x{min_buy_order.quantity}) --- "
-         f"Max/Sell at {sell_maximum_price}cr (x{max_sell_order.quantity})"))
-
-        return buy_orders, sell_orders, text
-
-    def trade_good_listing(self, trade_good):
-        if trade_good not in self.trade_good_status:
-            print("N/A")
-            return
-
-        buy_orders, sell_orders, text = self.summary_listing(trade_good)
-        # sell_orders.extend(sell_orders.copy()) # duplicates itself
-        # buy_orders.extend(buy_orders.copy())  # duplicates itself
-        print(
-            "+---------------------------------------------------------------------------------------------------------------------------+")
-        print(
-            "|                                                      Technology Goods                                                     |")
-        print(
-            "+-------------------------------------------------------------+-------------------------------------------------------------+")
-        print(
-            "|                             Buy                             |                             Sell                            |")
-
-        table_buy = PrettyTable(['Corporation', "Quantity", "Price", "Quality"])
-        table_sell = PrettyTable(['Corporation', "Quantity", "Price", "Quality"])
-        corp_name = "AAAAAAAAAAAAAAAAA"
-
-        status = self.trade_good_status[trade_good]
-        logistic_multiplier_buy, logistic_multiplier_sell = calculate_price_logistic(1 - status.price_range,
-                                                                                     1 + status.price_range,
-                                                                                     status.quantity,
-                                                                                     status.equilibrium_quantity)
-        # print(logistic_multiplier_buy, logistic_multiplier_sell)
-
-        for order in buy_orders:
-            table_buy.add_row(
-                [f"{corp_name: ^30}", order.quantity, self.get_final_price_by_order(order, trade_good, "Buy"), "B"])
-
-        for order in sell_orders:
-            table_sell.add_row(
-                [f"{corp_name: ^30}", order.quantity, self.get_final_price_by_order(order, trade_good, "Sell"), "B"])
-
-        table_string = table_buy.get_string()
-        table_string2 = table_sell.get_string()
-
-        # Split tables into lines
-        table_lines1 = table_string.splitlines()
-        table_lines2 = table_string2.splitlines()
-
-        # Find how many lines match in size
-        common_length = min(len(table_lines1), len(table_lines2))
-
-        # Remove the first character from matching lines only
-        modified_table_lines2 = [
-            line[1:] if i < common_length else line
-            for i, line in enumerate(table_lines2)
-        ]
-
-        # Ensure both tables have the same number of lines by padding the shorter one
-        max_lines = max(len(table_lines1), len(modified_table_lines2))
-
-        # Find the length of the longest line for padding
-        max_width1 = max(len(line) for line in table_lines1)
-        max_width2 = max(len(line) for line in modified_table_lines2)
-
-        # Pad the shorter table with empty rows to match the longer table
-        while len(table_lines1) < max_lines:
-            table_lines1.append(" " * (max_width1 - 1))
-        while len(modified_table_lines2) < max_lines:
-            modified_table_lines2.append(" " * max_width2)
-
-        # Merge lines side by side
-        final_table = "\n".join(f"{line1}{line2}" for line1, line2 in zip(table_lines1, modified_table_lines2))
-
-        print(final_table)
-        print("\n", text)
-
     def recalculate_prices(self):
         for trade_status in self.trade_good_status:
             self.trade_good_status[trade_status].calculate_new_daily_fluctuation()
-
-    # show a summary of every trade good, 1 line each
-    def quick_summary(self):
-        return
 
     @staticmethod
     def generate_market(market_name, equilibrium, supply, market_score, price_range_index):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
                                         [], [], 500, 480)
 
+        trade_data = SimulationStatus().TRADE_GOODS_DATA
         temp_trade_statuses = {}
 
-        for trade_good in TRADE_GOODS_DATA:
+        for trade_good in trade_data:
             temp_trade_statuses[trade_good] = trade_status1
 
 
@@ -449,13 +248,13 @@ class Market:
         temp.economy_entities = ees
         return temp
 
-    def generate_new_ees(self, equilibrium, supply, market_score, trade_difficulty=1, verbose=True):
+    def generate_new_ees(self, equilibrium, supply, market_score, trade_difficulty=1, verbose=True, debug=True):
 
         # TODO: create EEs for all of the remaining trade goods, figure out how to get names of corporations too.
         # for trade_good in TRADE_GOODS_DATA:
 
         tg = "Technology Goods"
-        price_range = global_trade_good_status[tg]["price_range"]
+        price_range = SimulationStatus().global_trade_good_status[tg]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range
         temp_status = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
                                       [], [], equilibrium, supply)
@@ -535,9 +334,10 @@ class Market:
         max_sell_final_price = min(buy_final_prices) - 1
 
         if verbose:
-            print(buy_price * market_score, sell_price * market_score)
-            print(f"Min:{max_sell_final_price}")
-        #print(60 * market_score * buy_price, 60 * market_score * sell_price)
+            print(f"Detailed Listing for {tg}")
+        if debug:
+            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(buy_price * market_score, 2)} {round(sell_price * market_score, 2)} | Min sell:{max_sell_final_price}")
+
         sell_final_prices = []
 
 
@@ -614,11 +414,6 @@ class Market:
             print(f"Average prices: {buy_weighted_average_price}/{sell_weighted_average_price} "
                   f"| Min buy: {min_buy_price} (x{min_buy_quantity}) | Max sell: {max_sell_price} (x{max_sell_quantity})")
 
-
-
-
-
-
         return ees
 
 
@@ -654,76 +449,7 @@ class OrderListing:
         self.quality = quality
 
     def get_price(self, modifiers=1, out_min=0.55, out_max=1.45, in_min=0.5, in_max=1.5):
-        return inflation * TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
+        simulation = SimulationStatus()
+        return simulation.inflation * simulation.TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
                 #experimenting without clamping any values since logistic function by itself kinda does this
                 #map_range_max_clamped(, in_min, in_max, out_min, out_max))\
-
-"""
-ol1 = OrderListing("Technology Goods", 0.975, 100)
-ol2 = OrderListing("Technology Goods", 1.025, 200)
-ol3 = OrderListing("Technology Goods", 1.0, 50)
-ol4 = OrderListing("Technology Goods", 0.99, 30)
-ol5 = OrderListing("Technology Goods", 1.01, 100)
-
-sol1 = OrderListing("Technology Goods", 0.975 / 1.1, 50)
-sol2 = OrderListing("Technology Goods", 1.025 / 1.1, 30)
-sol3 = OrderListing("Technology Goods", 1.0 / 1.1, 80)
-sol4 = OrderListing("Technology Goods", 0.99 / 1.1, 40)
-sol5 = OrderListing("Technology Goods", 1.01 / 1.1, 60)
-
-ee1 = EconomyEntity("Enterprise",
-                    "Celestial Industries",
-                    [ol1], [sol1])
-
-ee2 = EconomyEntity("Enterprise",
-                    "Lord Technologies",
-                    [ol2], [sol2])
-
-ee3 = EconomyEntity("Enterprise",
-                    "Titan Industries",
-                    [ol3], [sol3])
-
-ee4 = EconomyEntity("Enterprise",
-                    "Hope Systems Ltd.",
-                    [ol4], [sol4])
-
-ee5 = EconomyEntity("Enterprise",
-                    "Hyperion Devices",
-                    [ol5], [sol5])
-
-
-trade_statuses = {
-    trade_goods[0]: trade_status1,
-    trade_goods[1]: trade_status1,
-    trade_goods[2]: trade_status1,
-    trade_goods[3]: trade_status1,
-    trade_goods[4]: trade_status1,
-    trade_goods[5]: trade_status1,
-    trade_goods[6]: trade_status1,
-    trade_goods[7]: trade_status1,
-    trade_goods[8]: trade_status1,
-    trade_goods[9]: trade_status1,
-    trade_goods[10]: trade_status1,
-    trade_goods[11]: trade_status1,
-    trade_goods[12]: trade_status1,
-    trade_goods[13]: trade_status1,
-    trade_goods[14]: trade_status1,
-}
-
-#market = Market("Planet A", 1000, [ee1, ee2, ee3, ee4, ee5], trade_statuses)
-
-#market.generate_new_ees(False)
-
-market.trade_good_listing("Technology Goods")
-player_input = input("w to wait, q to quit :> ")
-while player_input.lower() != "q" or player_input.lower() != "quit" or player_input.lower() != "exit":
-    if player_input.lower() == "w" or player_input.lower() == "wait":
-        #clear screen, calculate new prices and display
-        #os.system('cls' if os.name == 'nt' else 'clear')
-        print("\n" * 10)
-        market.recalculate_prices()
-        market.trade_good_listing("Technology Goods")
-        print(market.trade_good_status["Technology Goods"].daily_fluctuation)
-        player_input = input("w to wait, q to quit :> ")
-#market.summary_listing("Technology Goods")
-"""
