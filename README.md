@@ -33,7 +33,7 @@ Market:
   * Supply and Demand
 
 TODO:
-- Add user interaction in the form of commands
+- Add more user interaction in the form of commands like auto-buying/selling from multiple EEs at once.
 - When Selling, your trade goods need to be of a certain quality.
 - In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
 - Passsage of time and price adjustment over time to reflect new supply
@@ -44,6 +44,7 @@ TODO:
 - Add random events where prices change
 - Add some kind of supply chains where to produce certain goods you need others
 - Item grouping by price, place of origin and quality.
+- Proceduarely generate markets based on several factors like culture, political system and population
   
 Market:
   A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
