@@ -1,6 +1,5 @@
 ﻿import math
 import random
-import normalrandom
 from math2 import lerp, clamp, map_range_clamped
 
 
@@ -76,6 +75,49 @@ def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k
 
 
     return buy_logistic_multiplier, buy_logistic_multiplier * sell_discount
+
+def trade_good_distribution(total_goods, num_slots, spread_multiplier=0.75):
+    """
+    Distributes total_goods into num_slots using a smooth descending pattern with controlled randomness.
+
+    :param total_goods: int - Total amount of goods to distribute.
+    :param num_slots: int - Number of slots/entities to distribute among.
+    :param spread_multiplier: float - Controls spread smoothness (0.5 for balanced, 1.0 for steep drop-off).
+    :return: List[int] - Distributed values in descending order.
+    """
+    if total_goods <= 0 or num_slots <= 0:
+        return [0] * num_slots  # Edge case: No goods to distribute
+
+    # Generate a smooth descending base pattern
+    base_pattern = [max(0.1, num_slots - (i * spread_multiplier)) for i in range(num_slots)]
+    pattern_sum = sum(base_pattern)
+
+    # Scale pattern to match total_goods
+    distribution = [(x / pattern_sum) * total_goods for x in base_pattern]
+
+    # Apply controlled randomness based on available supply
+    max_variation = max(1, total_goods // num_slots)  # Ensure reasonable variation
+    random_variation = [random.randint(-max_variation, max_variation) for _ in range(num_slots)]
+
+    # Adjust values while preventing negatives
+    for i in range(num_slots):
+        if i < num_slots // 2:  # Early values get slight positive variation
+            distribution[i] += abs(random_variation[i])
+        else:  # Later values get slight reductions
+            distribution[i] -= abs(random_variation[i]) * 0.25
+
+    # Convert to integers and prevent negatives
+    distribution = [max(0, round(x)) for x in distribution]
+
+    # Ensure total sums up correctly
+    difference = total_goods - sum(distribution)
+    for i in range(abs(difference)):
+        if difference > 0:
+            distribution[i % num_slots] += 1  # Add to the first elements
+        elif difference < 0 and distribution[i % num_slots] > 0:
+            distribution[i % num_slots] -= 1  # Remove from nonzero elements
+
+    return distribution
 
 
 class TradeGoodStatus:
@@ -264,7 +306,7 @@ class Market:
         # still use of the total supply existing on the market
         internal_supply = True
         available_supply = supply - bracketed_pricing(equilibrium)[0] if internal_supply else supply
-        buy_goods = normalrandom.trade_good_distribution(available_supply, 7)
+        buy_goods = trade_good_distribution(available_supply, 7)
 
         self.trade_good_status[tg].available_supply = available_supply
 
@@ -315,7 +357,7 @@ class Market:
         # SELL ORDERS - create sell orders by determining the sell quantity
         # the total quantity for sell orders is determined by 2equilibrium_quantity - quantity
         # the spread is more smoothed out to give the largest producers still a fair amount with spread = 0.4
-        sell_goods = normalrandom.trade_good_distribution(2 * equilibrium - supply, 7, 0.4)
+        sell_goods = trade_good_distribution(2 * equilibrium - supply, 7, 0.4)
         sell_goods.reverse()
         sell_orders = []
         # print(sell_goods)
@@ -443,3 +485,5 @@ class OrderListing:
         return simulation.inflation * simulation.TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
                 #experimenting without clamping any values since logistic function by itself kinda does this
                 #map_range_max_clamped(, in_min, in_max, out_min, out_max))\
+
+
