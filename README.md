@@ -11,7 +11,8 @@ Summary:
 - When supply is low, selling prices approach buying prices to incentivize selling
 - Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
 
-![Here's an example use](images/pic1.png)
+Here's an example use
+![](images/pic1.png)
 
 
 Most important file is economy_entity.py
