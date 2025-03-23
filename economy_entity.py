@@ -246,6 +246,23 @@ class Market:
         self.economy_entities = economy_entities
         self.trade_good_status = trade_good_status
 
+    def buy_sell(self, ee_index, trade_good, quantity, operation):
+        try:
+            if operation == "Buy":
+                order = self.economy_entities[ee_index].find_buy_order(trade_good)
+            elif operation == "Sell":
+                order = self.economy_entities[ee_index].find_sell_order(trade_good)
+            else:
+                return -1
+
+            quantity_operated = quantity if order.quantity >= quantity else order.quantity
+            order.quantity = max(0, order.quantity - quantity)
+
+            return quantity_operated
+        except IndexError:
+            print("Please input a valid corporation index")
+            return -1
+
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
 
@@ -466,6 +483,16 @@ class EconomyEntity:
     def __str__(self):
         return f"{self.name} - [{type}] : Buy:{self.buy_orders[0].get_price()} | Sell:{self.sell_orders[0].get_price()}"
 
+    def find_buy_order(self, trade_good):
+        for order in self.buy_orders:
+            if order.trade_good == trade_good:
+                return order
+
+    def find_sell_order(self, trade_good):
+        for order in self.sell_orders:
+            if order.trade_good == trade_good:
+                return order
+
 
 class OrderListing:
     def __init__(self, trade_good, price_point, quantity, quality='B'):
@@ -485,5 +512,8 @@ class OrderListing:
         return simulation.inflation * simulation.TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
                 #experimenting without clamping any values since logistic function by itself kinda does this
                 #map_range_max_clamped(, in_min, in_max, out_min, out_max))\
+
+    def __str__(self):
+        return f"{self.trade_good}|{self.price_point}|{self.quantity}|{self.quality}"
 
 
