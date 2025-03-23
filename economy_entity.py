@@ -1,10 +1,8 @@
 ﻿import math
 import random
-from hashlib import algorithms_available
-
-#import main
-from prettytable import PrettyTable
 import normalrandom
+from math2 import lerp, clamp, map_range_clamped
+
 
 class SimulationStatus(object):
     # Singleton
@@ -31,16 +29,25 @@ class SimulationStatus(object):
         "Ammunition":       {"base_price": 15,  "base_range": 0.15},
     }
 
-    # changes based on trade difficulty
+    # changes based on trade difficulty so we can reinitialize with different values
     global_trade_good_status = {
         key: {"price_range": value["base_range"]}
         for key, value in TRADE_GOODS_DATA.items()
     }
-    print(global_trade_good_status)
 
     trade_difficulty = 1
     inflation = 1.0
     days_elapsed = 0 #we increase inflation every day until we reach 4.0 at 10 000 days
+    MAX_INFLATION_DAYS = 10000
+
+    def skip_day(self):
+        self.days_elapsed += 1
+        self.inflation = lerp(1.0, 4.0, clamp(self.days_elapsed / self.MAX_INFLATION_DAYS, 0, self.MAX_INFLATION_DAYS))
+
+    def set_to_day(self, day):
+        self.days_elapsed = day - 1
+        self.skip_day()
+        print(self.inflation)
 
 def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
                              max_sell_discount=0.98, sell_k=10):
@@ -180,7 +187,7 @@ def calculate_price_ranges(trade_difficulty):
 
         # in essence, this is a sliding value from max_difficulty_penalty to 1.0 based on the trade difficulty selected
         global_trade_good_status[trade_good]["price_range"] = (base_range *
-            (1.0 - ((trade_difficulty - min_difficulty) / (max_difficulty - min_difficulty)) * (1.0 - max_difficulty_penalty)))
+            map_range_clamped(trade_difficulty, min_difficulty, max_difficulty, 1.0, max_difficulty_penalty))
 
 
 class Market:
@@ -196,23 +203,6 @@ class Market:
         self.market_score = market_score
         self.economy_entities = economy_entities
         self.trade_good_status = trade_good_status
-
-    def get_all_order_listings_by_trade_good(self, trade_good, operation):
-        order_listings = []
-        if operation == "Buy":
-            for ee in self.economy_entities:
-                for bo in ee.buy_orders:
-                    if trade_good == bo.trade_good:
-                        order_listings.append(bo)
-                        break
-        elif operation == "Sell":
-            for ee in self.economy_entities:
-                for bo in ee.sell_orders:
-                    if trade_good == bo.trade_good:
-                        order_listings.append(bo)
-                        break
-
-        return order_listings
 
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
@@ -232,7 +222,7 @@ class Market:
             self.trade_good_status[trade_status].calculate_new_daily_fluctuation()
 
     @staticmethod
-    def generate_market(market_name, equilibrium, supply, market_score, price_range_index):
+    def generate_market(market_name, equilibrium, supply, market_score):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
                                         [], [], 500, 480)
 
@@ -244,11 +234,11 @@ class Market:
 
 
         temp = Market(market_name, market_score, [], temp_trade_statuses)
-        ees = temp.generate_new_ees(equilibrium, supply, market_score, price_range_index, True)
+        ees = temp.generate_new_ees(equilibrium, supply, market_score, True)
         temp.economy_entities = ees
         return temp
 
-    def generate_new_ees(self, equilibrium, supply, market_score, trade_difficulty=1, verbose=True, debug=True):
+    def generate_new_ees(self, equilibrium, supply, market_score, verbose=True, debug=True):
 
         # TODO: create EEs for all of the remaining trade goods, figure out how to get names of corporations too.
         # for trade_good in TRADE_GOODS_DATA:
@@ -267,7 +257,6 @@ class Market:
         # create order listings for each EE by using the price spread
         # the price point depends on the quality where the random value tends to the range interval.
         ees = []
-        qualities = ['D', 'C', 'B', 'A']
 
         # available supply is what the market offers to export to avoid a player induced deficit by not making available
         # everything to purchase. If Equilibrium is 100, you won't be able to buy enough to cause supply go below
@@ -283,6 +272,7 @@ class Market:
                  'Voidware Devices',
                  'Inilai Electronics', 'Interstellar Circuits']
 
+        #qualities = ['D', 'C', 'B', 'A']
         quality_distribution = []
         for i, quantity in enumerate(buy_goods):
             if i < len(buy_goods) * 0.6:  # Top 60% of list
@@ -355,7 +345,7 @@ class Market:
             #print(price_point)
 
             if verbose:
-                print(f"{ees[i].name:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_final_prices[i]:>4}cr | "
+                print(f"{str(i + 1) + "."} {ees[i].name:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_final_prices[i]:>4}cr | "
                   f"Sell (x{sell_order.quantity:<5}) at {sell_final_prices[i]:>4}cr - Q:{buy_orders[i].quality}")
 
         if 0.75 < ratio < 1.25:
