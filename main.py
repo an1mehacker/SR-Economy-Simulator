@@ -38,18 +38,21 @@ if __name__ == "__main__":
     # determine trade status, equilibrium quantity and current quantity
     equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
     supply = int(input("Input a Current Supply > "))  # 480
+    tg = "Technology Goods"
 
     # market score determines development level, highly developed markets's goods are more expensive
     market_score = clamp(float(input("Input a Development score. Higher score makes prices higher (0.8x - 1.2x) > ")), 0.8, 1.2)
     market = Market.generate_market("Planet", equilibrium, supply, market_score)
 
+    market.detailed_listing(tg)
     player_input = input("w to wait, q to quit, b [corporation index] [quantity]  to buy, s [corporation index] [quantity] to sell, h or help for command list :> ")
     command, params = parse_command(player_input)
+
     while command != "q" :
+
         if command == "b":
             if len(params) >= 2:
                 quantity = int(params[1])
-                print(quantity)
                 if int(params[1]) > 0:
                     quantity = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Buy")
                     print(f"You bought {quantity} goods from corporation {params[0]}!")
@@ -64,7 +67,7 @@ if __name__ == "__main__":
         if command == "h":
             print("w to wait\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nh or help for command list ")
 
-
+        market.detailed_listing(tg)
         player_input = input("> ")
         command, params = parse_command(player_input)
 
