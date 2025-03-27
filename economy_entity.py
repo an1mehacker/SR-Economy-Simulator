@@ -220,7 +220,18 @@ def bracketed_pricing(equilibrium):
     # in respect to the operation meaning We buy, only buy price gets recalculated, sell, only sell prices etc etc
     # The market will still gradually adjust their prices over a period of 60-70 days.
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
-    return round(0.75 * equilibrium), round(0.2 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
+    return round(0.2 * equilibrium), round(0.75 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
+
+def check_breakpoint_change(equilibrium, before_supply, after_supply) -> bool:
+    # True if the change in supply has surpassed a critical breakpoint (positively or negatively)
+    breakpoints = bracketed_pricing(equilibrium)
+    break_point_1, break_point_2 = 0, 0
+    for i, point in enumerate(breakpoints):
+        break_point_1 = i if before_supply < point and break_point_1 == 0 else break_point_1
+        break_point_2 = i if after_supply < point  and break_point_2 == 0 else break_point_2
+
+    return break_point_1 != break_point_2
+
 
 def calculate_price_ranges(trade_difficulty):
     global_trade_good_status = SimulationStatus().global_trade_good_status
@@ -270,8 +281,12 @@ class Market:
                     order.quantity  # Update second element
                 )
                 # TODO: add checks to make sure these values don't get weird
+                before_total = self.trade_good_status[trade_good].total_supply
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply - quantity_operated
+
+                if check_breakpoint_change(self.trade_good_status[trade_good].equilibrium_quantity, before_total, self.trade_good_status[trade_good].total_supply):
+                    print("Breakpoint reached - recalculate!")
 
             else:
                 self.trade_good_status[trade_good].cached_sell_orders[ee_index] = (
@@ -345,7 +360,7 @@ class Market:
         # 0.75x - 75 units. Meaning the player can only buy from 0.75 ratio and above. However, the price calculations
         # still use of the total supply existing on the market
         internal_supply = True
-        available_supply = supply - bracketed_pricing(equilibrium)[0] if internal_supply else supply
+        available_supply = supply - bracketed_pricing(equilibrium)[1] if internal_supply else supply
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
                  'Voidware Devices',
                  'Inilai Electronics', 'Interstellar Circuits']
@@ -409,7 +424,6 @@ class Market:
         # get the minimum buying price to then establish a maximum selling price
         max_sell_final_price = min(buy_final_prices) - 1
 
-
         sell_final_prices = []
 
         for i in range(enterprise_amount):
@@ -445,6 +459,7 @@ class Market:
     def detailed_listing(self, trade_good, debug=True):
         trade_good_status = self.trade_good_status[trade_good]
 
+        # TODO: Replace this with a proper way to access data about prices and corporations
         buy_stuff = trade_good_status.cached_buy_orders
         sell_stuff = trade_good_status.cached_sell_orders
         enterprise_amount = trade_good_status.get_enterprise_size()
@@ -515,7 +530,7 @@ class Market:
 
 
 class EconomyEntity:
-    def __init__(self, ee_type, name, buy_orders, sell_orders):
+    def __init__(self, ee_type, name, buy_orders, sell_orders, trade_good_types=[]):
         """
         Abbreviated as "ee"
 
@@ -525,8 +540,20 @@ class EconomyEntity:
         """
         self.type = ee_type
         self.name = name
+
+        # TODO: Replace buy and sell orders that do not differentiate between trade good types with trade orders
         self.buy_orders = buy_orders
         self.sell_orders = sell_orders
+
+        # for each trade good type, we have a list for each operation
+        # only need one order for each entity.
+        # only need keys for trade goods that are actually gonna be used
+        self.trade_orders = {
+            key: {"buy_order": None, "sell_order": None}
+            for key in trade_good_types if key in SimulationStatus().TRADE_GOODS_DATA
+        }
+        print(self.trade_orders)
+
 
     def __str__(self):
         return f"{self.name} - [{type}] : Buy:{self.buy_orders[0].get_price()} | Sell:{self.sell_orders[0].get_price()}"
