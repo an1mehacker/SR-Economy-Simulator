@@ -317,30 +317,32 @@ class Market:
                 return -1
 
             quantity_operated = quantity if order.quantity >= quantity else order.quantity
-            order.quantity = max(0, order.quantity - quantity)
+            order.quantity = order.quantity - quantity_operated
+
+            before_total = self.trade_good_status[trade_good].total_supply
 
             if operation == "Buy":
-                self.trade_good_status[trade_good].cached_buy_orders[ee_index] = (
-                    self.trade_good_status[trade_good].cached_buy_orders[ee_index][0],  # Keep first element
-                    order.quantity  # Update second element
-                )
+                self.economy_entities[ee_index].trade_orders[trade_good]["buy_order"] = order
+                sell_order = self.economy_entities[ee_index].trade_orders[trade_good]["sell_order"]
+                sell_order.quantity = sell_order.quantity + quantity_operated
+
                 # TODO: add checks to make sure these values don't get weird
-                before_total = self.trade_good_status[trade_good].total_supply
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply - quantity_operated
 
-                if check_breakpoint_change(self.trade_good_status[trade_good].equilibrium_quantity, before_total, self.trade_good_status[trade_good].total_supply):
-                    print("Breakpoint reached - recalculate!")
-
             else:
-                self.trade_good_status[trade_good].cached_sell_orders[ee_index] = (
-                    self.trade_good_status[trade_good].cached_sell_orders[ee_index][0],  # Keep first element
-                    order.quantity  # Update second element
-                )
+                self.economy_entities[ee_index].trade_orders[trade_good]["sell_order"] = order
+                buy_order = self.economy_entities[ee_index].trade_orders[trade_good]["buy_order"]
+                buy_order.quantity = buy_order.quantity + quantity_operated
+
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply + quantity_operated
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply + quantity_operated
 
-            return quantity_operated
+            if check_breakpoint_change(self.trade_good_status[trade_good].equilibrium_quantity, before_total,
+                                       self.trade_good_status[trade_good].total_supply):
+                print("Breakpoint reached - recalculate!")
+
+            return quantity_operated, order
         except IndexError:
             print("Please input a valid corporation index")
             return -1
@@ -488,7 +490,6 @@ class Market:
         enterprise_amount = len(self.economy_entities)
         names = [ee.name for ee in self.economy_entities]
         quality_distribution = [order.quality for order in buy_orders]
-        situation = trade_good_status.situation
 
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range
@@ -504,7 +505,7 @@ class Market:
                 f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr | "
                 f"Sell (x{sell_orders[i].quantity:<5}) at {sell_orders[i].calculated_price:>4}cr - Q:{quality_distribution[i]}")
 
-        print(f"Situation - {situation}")
+        print(f"Situation - {trade_good_status.situation}")
         print(f"Breakoffs - {bracketed_pricing(trade_good_status.equilibrium_quantity)}")
         print(
             f"Available for export: {trade_good_status.available_supply} | Internal supply: "

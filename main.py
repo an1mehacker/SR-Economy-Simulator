@@ -54,15 +54,22 @@ if __name__ == "__main__":
             if len(params) >= 2:
                 quantity = int(params[1])
                 if int(params[1]) > 0:
-                    quantity = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Buy")
-                    print(f"You bought {quantity} goods from corporation {params[0]}!")
+                    quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Buy")
+                    if quantity > 0:
+                        print(f"You bought {quantity} goods from corporation {params[0]} for a total of {order.calculated_price * quantity}cr!")
+                    else:
+                        print("Need at least 1 unit to sell")
                 else:
                     print("Please input a positive integer number")
 
         if command == "s":
             if len(params) >= 2:
-                quantity = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
-                print(f"You sold {quantity} goods from corporation {params[0]}!")
+                quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
+                if quantity > 0:
+                    print(f"You sold {quantity} goods from corporation {params[0]} for a total of {order.calculated_price * quantity}cr!")
+                else:
+                    print("Need at least 1 unit to sell")
+
 
         if command == "h":
             print("w to wait\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nh or help for command list ")
