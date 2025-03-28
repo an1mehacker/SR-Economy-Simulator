@@ -76,7 +76,10 @@ class EconomyEntity:
     def __init__(self, ee_type : str, name : str, trade_good_types : list):
         """
         Abbreviated as "ee"
-        :param name:
+        :param ee_type: "Enterprise" or "Individual"
+        :param name: name of the enterprise like Technology Inc. or if individual John Smith
+        :param trade_good_types: list of str of good types that the economy entity produces or sells
+        with names provided by TRADE_GOOD_DATA from SimulationStatus
         """
         self.type = ee_type
         self.name = name
@@ -88,14 +91,17 @@ class EconomyEntity:
             for key in trade_good_types if key in SimulationStatus().TRADE_GOODS_DATA
         }
 
-    def add_trade_good_type(self, trade_good):
+    def has_good_type(self, trade_good : str):
+        return True if trade_good in self.trade_orders else False
+
+    def add_trade_good_type(self, trade_good : str):
         if trade_good in SimulationStatus().TRADE_GOODS_DATA and trade_good not in self.trade_orders:
             self.trade_orders[trade_good] = {"buy_order": OrderListing(1, 1), "sell_order": OrderListing(1, 1)}
 
-    def find_buy_order(self, trade_good):
+    def find_buy_order(self, trade_good : str):
         return self.trade_orders[trade_good]["buy_order"]
 
-    def find_sell_order(self, trade_good):
+    def find_sell_order(self, trade_good : str):
         return self.trade_orders[trade_good]["sell_order"]
 
 
@@ -294,25 +300,25 @@ def calculate_price_ranges(trade_difficulty):
 
 
 class Market:
-    def __init__(self, market_name, market_score, economy_entities, trade_good_status):
+    def __init__(self, market_name, development_score, economy_entities, trade_good_status):
         """
 
         :param market_name: string - name of the market like the planet or station's name
-        :param market_score: a global price modifier, goods are more expensive in highly developed markets
+        :param development_score: a global price modifier, goods are more expensive in highly developed markets
         :param economy_entities:  list of EconomyEntities
         :param trade_good_status: list of TradeGoodStatus
         """
         self.name = market_name
-        self.market_score = market_score
+        self.development_score = development_score
         self.economy_entities = economy_entities
         self.trade_good_status = trade_good_status
 
-    def buy_sell(self, ee_index, trade_good, quantity, operation):
+    def buy_sell(self, filtered_ees, ee_index, trade_good, quantity, operation):
         try:
             if operation == "Buy":
-                order = self.economy_entities[ee_index].find_buy_order(trade_good)
+                order = filtered_ees[ee_index].find_buy_order(trade_good)
             elif operation == "Sell":
-                order = self.economy_entities[ee_index].find_sell_order(trade_good)
+                order = filtered_ees[ee_index].find_sell_order(trade_good)
             else:
                 return -1
 
@@ -322,8 +328,8 @@ class Market:
             before_total = self.trade_good_status[trade_good].total_supply
 
             if operation == "Buy":
-                self.economy_entities[ee_index].trade_orders[trade_good]["buy_order"] = order
-                sell_order = self.economy_entities[ee_index].trade_orders[trade_good]["sell_order"]
+                filtered_ees[ee_index].trade_orders[trade_good]["buy_order"] = order
+                sell_order = filtered_ees[ee_index].trade_orders[trade_good]["sell_order"]
                 sell_order.quantity = sell_order.quantity + quantity_operated
 
                 # TODO: add checks to make sure these values don't get weird
@@ -331,8 +337,8 @@ class Market:
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply - quantity_operated
 
             else:
-                self.economy_entities[ee_index].trade_orders[trade_good]["sell_order"] = order
-                buy_order = self.economy_entities[ee_index].trade_orders[trade_good]["buy_order"]
+                filtered_ees[ee_index].trade_orders[trade_good]["sell_order"] = order
+                buy_order = filtered_ees[ee_index].trade_orders[trade_good]["buy_order"]
                 buy_order.quantity = buy_order.quantity + quantity_operated
 
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply + quantity_operated
@@ -485,10 +491,12 @@ class Market:
     def detailed_listing(self, trade_good, debug=True):
         trade_good_status = self.trade_good_status[trade_good]
 
-        buy_orders = [ee.trade_orders[trade_good]["buy_order"] for ee in self.economy_entities]
-        sell_orders = [ee.trade_orders[trade_good]["sell_order"] for ee in self.economy_entities]
-        enterprise_amount = len(self.economy_entities)
-        names = [ee.name for ee in self.economy_entities]
+        filtered_ees = [ee for ee in self.economy_entities if ee.has_good_type(trade_good)]
+
+        buy_orders = [ee.trade_orders[trade_good]["buy_order"] for ee in filtered_ees]
+        sell_orders = [ee.trade_orders[trade_good]["sell_order"] for ee in filtered_ees]
+        enterprise_amount = len(filtered_ees)
+        names = [ee.name for ee in filtered_ees]
         quality_distribution = [order.quality for order in buy_orders]
 
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
@@ -496,9 +504,9 @@ class Market:
 
         max_sell_final_price = min([order.calculated_price for order in buy_orders])
 
-        print(f"Detailed Listing for {trade_good}")
+        print(f"\nDetailed Listing for {trade_good}")
         if debug:
-            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(trade_good_status.buy_price * self.market_score, 2)} {round(trade_good_status.sell_price * self.market_score, 2)} | Min sell:{max_sell_final_price}")
+            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(trade_good_status.buy_price * self.development_score, 2)} {round(trade_good_status.sell_price * self.development_score, 2)} | Min sell:{max_sell_final_price}")
 
         for i in range(enterprise_amount):
             print(
@@ -552,5 +560,7 @@ class Market:
 
         print(f"Average prices: {buy_weighted_average_price}/{sell_weighted_average_price} "
               f"| Min buy: {min_buy_price} (x{min_buy_quantity}) | Max sell: {max_sell_price} (x{max_sell_quantity})")
+
+        return filtered_ees
 
 

@@ -15,13 +15,32 @@ def parse_command(user_input):
 
     params = [int(param) if param.isdigit() else param for param in params]
 
+    if operation in {"b", "buy"}:
+        return "b", params
+
+    if operation in {"s", "sell"}:
+        return "s", params
+
+
+    if operation in {"bl"}:
+        return "bl", params
+
+    if operation in {"sl"}:
+        return "sl", params
+
+    if operation in {"w"}:
+        return "w", params
+
     if operation in {"q", "quit", "exit"}:
         return "q", []  # e.g., ('w', None) or ('quit', None)
 
     if operation in {"h", "help"}:
         return "h", params
 
-    return operation, params  # Invalid input
+    if operation in {"l", "list"}:
+        return "l", params
+
+    return None, None  # Invalid input
 
 if __name__ == "__main__":
     simulation_status = SimulationStatus()
@@ -31,50 +50,81 @@ if __name__ == "__main__":
     print(simulation_status.inflation)
     #"""
 
-    trade_difficulty = clamp(int(input("Input a trade difficulty. Higher difficulty tightens the spread of prices (1 - 10) > ")), 1, 10)
+    while True:
+        user_input = input(
+            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.8-1.2) separated by spaces\nOr press Enter for default values (1 500 500 1)\n> ")
+
+        if user_input.strip() == "":
+            trade_difficulty, equilibrium, supply, development_score = 1, 500, 500, 1.0
+            break
+
+        try:
+            trade_difficulty, equilibrium, supply, development_score = user_input.split()
+
+            trade_difficulty = clamp(int(trade_difficulty), 1, 10)
+            equilibrium = int(equilibrium)
+            supply = int(supply)
+            development_score = clamp(float(development_score), 0.8, 1.2)
+            break
+        except ValueError:
+            print("Invalid input, enter something like '2 500 300 0.9'")
+
+
     simulation_status.trade_difficulty = trade_difficulty
     calculate_price_ranges(trade_difficulty)
 
-    # determine trade status, equilibrium quantity and current quantity
-    equilibrium = int(input("Input an Equilibrium Supply > "))  # 500
-    supply = int(input("Input a Current Supply > "))  # 480
     tg = "Technology Goods"
+    market = Market.generate_market("Planet", equilibrium, supply, development_score)
 
-    # market score determines development level, highly developed markets's goods are more expensive
-    market_score = clamp(float(input("Input a Development score. Higher score makes prices higher (0.8x - 1.2x) > ")), 0.8, 1.2)
-    market = Market.generate_market("Planet", equilibrium, supply, market_score)
-
-    market.detailed_listing(tg)
-    player_input = input("w to wait, q to quit, b [corporation index] [quantity]  to buy, s [corporation index] [quantity] to sell, h or help for command list :> ")
+    filtered_ees = market.detailed_listing(tg)
+    player_input = input("w to skip time\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nl to show detailed listing\nh or help for complete command list\n> ")
     command, params = parse_command(player_input)
 
     while command != "q" :
 
-        if command == "b":
+        if command is None:
+            print("Invalid command. Type h for complete command list")
+
+        if command == "b" or command == "bl":
             if len(params) >= 2:
                 quantity = int(params[1])
-                if int(params[1]) > 0:
-                    quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Buy")
+                if 0 < int(params[0]) < len(filtered_ees) + 1 and int(params[1] > 0):
+                    quantity, order = market.buy_sell(filtered_ees, params[0] - 1, "Technology Goods", params[1], "Buy")
                     if quantity > 0:
-                        print(f"You bought {quantity} goods from corporation {params[0]} for a total of {order.calculated_price * quantity}cr!")
+                        print(f"You bought {quantity} {tg} from {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
+                    else:
+                        print("Need at least 1 unit to buy")
+                else:
+                    print("Input a valid corporation index number and a positive quantity number")
+            else:
+                print(f"Usage: b{"l" if command == "bl" else ""} [corporation index] [quantity]")
+
+        if command == "s" or command == "sl":
+            if len(params) >= 2:
+                if 0 < int(params[0]) < len(filtered_ees) + 1 and int(params[1] > 0):
+                    quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
+                    if quantity > 0:
+                        print(f"You sold {quantity} {tg} from {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
                     else:
                         print("Need at least 1 unit to sell")
                 else:
-                    print("Please input a positive integer number")
-
-        if command == "s":
-            if len(params) >= 2:
-                quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
-                if quantity > 0:
-                    print(f"You sold {quantity} goods from corporation {params[0]} for a total of {order.calculated_price * quantity}cr!")
-                else:
-                    print("Need at least 1 unit to sell")
-
+                        print("Input a valid corporation index number and a positive quantity number")
+            else:
+                print(f"Usage: s{"l" if command == "bl" else ""} [corporation index] [quantity]")
 
         if command == "h":
-            print("w to wait\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nh or help for command list ")
+            print("w [number of days: optional] to skip time\n"
+                  "q to quit\n"
+                  "b [corporation index] [quantity] - to buy\n"
+                  "s [corporation index] [quantity] - to sell\n"
+                  "l - to show detailed listing\n"
+                  "bl [corporation index] [quantity] - buy and show detailed listing\n"
+                  "sl [corporation index] [quantity] - sell and show detailed listing\n"
+                  "h or help - show this command list ")
 
-        market.detailed_listing(tg)
+        if command in ["l", "bl", "sl"]:
+            market.detailed_listing(tg)
+
         player_input = input("> ")
         command, params = parse_command(player_input)
 
