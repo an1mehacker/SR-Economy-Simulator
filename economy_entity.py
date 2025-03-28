@@ -48,6 +48,57 @@ class SimulationStatus(object):
         self.skip_day()
         print(self.inflation)
 
+
+class OrderListing:
+    def __init__(self, price_point : float, quantity : int, quality='B'):
+        """
+        Only one order listing per trade good to sell and one to buy for each EconomyEntity
+        :param price_point
+        :param quantity:
+        """
+        self.price_point = price_point
+        self.quantity = quantity
+        self.quality = quality
+
+        self.calculated_price = 0
+
+    def get_price(self, trade_good, modifiers=1):
+        simulation = SimulationStatus()
+        return simulation.inflation * simulation.TRADE_GOODS_DATA[trade_good][
+            "base_price"] * self.price_point * modifiers
+    # at worst case scenario the price points can be as low
+    # 0.8x market score, 0.975x fluctuation, 0.8x quality modifier, (1 - highest value in trade goods data)x
+    # and as high as
+    # 1.2x market score, 1.025x fluctuation, 1.2 quality modifier, 1.6x price range
+    # this becomes a max theoretical range of 0.25x-2.36x not factoring market modifiers.
+
+class EconomyEntity:
+    def __init__(self, ee_type : str, name : str, trade_good_types : list):
+        """
+        Abbreviated as "ee"
+        :param name:
+        """
+        self.type = ee_type
+        self.name = name
+
+        # for each trade good type, we have two orders, one for each operation.
+        # only need keys for trade goods that are actually gonna be used
+        self.trade_orders = {
+            key: {"buy_order": OrderListing(1, 1), "sell_order": OrderListing(1, 1)}
+            for key in trade_good_types if key in SimulationStatus().TRADE_GOODS_DATA
+        }
+
+    def add_trade_good_type(self, trade_good):
+        if trade_good in SimulationStatus().TRADE_GOODS_DATA and trade_good not in self.trade_orders:
+            self.trade_orders[trade_good] = {"buy_order": OrderListing(1, 1), "sell_order": OrderListing(1, 1)}
+
+    def find_buy_order(self, trade_good):
+        return self.trade_orders[trade_good]["buy_order"]
+
+    def find_sell_order(self, trade_good):
+        return self.trade_orders[trade_good]["sell_order"]
+
+
 def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
                              max_sell_discount=0.98, sell_k=10):
     """
@@ -147,16 +198,9 @@ class TradeGoodStatus:
         self.available_supply = 0
 
         # for display
-        self.cached_names = []
-        self.cached_buy_orders = []
-        self.cached_sell_orders = []
-        self.cached_qualities = []
         self.buy_price, self.sell_price = 0, 0
 
         self.situation = "Idk"
-
-    def get_enterprise_size(self) -> int:
-        return len(self.cached_buy_orders)
 
     def calculate_new_daily_fluctuation(self):
         self.daily_fluctuation = random.uniform(1 - self.max_fluctuation, 1 + self.max_fluctuation)
@@ -302,17 +346,10 @@ class Market:
             return -1
 
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
-        price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
-
         if operation == "Buy":
-            return round(order_listing.get_price(self.trade_good_status[trade_good].get_buy_modifier(), 1 - price_range,
-                                                 1 + price_range))
+            return round(order_listing.get_price(trade_good, self.trade_good_status[trade_good].get_buy_modifier()))
         elif operation == "Sell":
-            price = round(order_listing.get_price(self.trade_good_status[trade_good].get_sell_modifier(), 1 - price_range,
-                                        1 + price_range, 0.5, 1.5))
-            #print(price)
-            return min(price, min_buy_price)
-        # maybe instead of 0.5-1.5 use the actual price points idk
+            return min(round(order_listing.get_price(trade_good, self.trade_good_status[trade_good].get_sell_modifier())), min_buy_price)
 
     def recalculate_prices(self):
         for trade_status in self.trade_good_status:
@@ -353,7 +390,7 @@ class Market:
         # this spread isn't related to price distributions on main.py as that's how much prices vary over multiple economies
         # create order listings for each EE by using the price spread
         # the price point depends on the quality where the random value tends to the range interval.
-        ees = []
+
 
         # available supply is what the market offers to export to avoid a player induced deficit by not making available
         # everything to purchase. If Equilibrium is 100, you won't be able to buy enough to cause supply go below
@@ -362,8 +399,7 @@ class Market:
         internal_supply = True
         available_supply = supply - bracketed_pricing(equilibrium)[1] if internal_supply else supply
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
-                 'Voidware Devices',
-                 'Inilai Electronics', 'Interstellar Circuits']
+                 'Voidware Devices', 'Inilai Electronics', 'Interstellar Circuits']
         enterprise_amount = len(names)
 
         buy_goods = trade_good_distribution(available_supply, enterprise_amount)
@@ -372,7 +408,7 @@ class Market:
 
         #TODO: Programatically determine amount of enterprise EEs to generate based on market's conditions instead of
         # the hardcoded number 7 we're experimenting. For example more populated developed planets have in general
-        # more technology goods corporations
+        # more technology goods corporations. Additionally assign trade good types for EEs immediately
 
         #qualities = ['D', 'C', 'B', 'A']
         quality_distribution = []
@@ -384,8 +420,6 @@ class Market:
 
             quality_distribution.append(quality)
 
-        self.trade_good_status[tg].cached_qualities = quality_distribution
-        self.trade_good_status[tg].cached_names = names
         ratio = supply / equilibrium if equilibrium != 0 else supply
         buy_price, sell_price = calculate_price_logistic(floor, ceil, ratio)
         sell_ratio = sell_price / buy_price if buy_price != 0 else 0.9
@@ -393,48 +427,44 @@ class Market:
         #we adjust the sell price to account for intersection between the lowest buying prices and maximum selling prices
         #higher supply - greater divide between buy and sell price and vice versa
         sell_price = sell_price * sell_ratio
-        #print(sell_ratio)
 
+        ees = []
+        quality_modifiers = []
+        for i in range(enterprise_amount):
+            ee = EconomyEntity("Enterprise", names[i], [tg])
+            ees.append(ee)
+            quality_modifier = get_quality_price_multiplier(60, quality_distribution[i])
+            quality_modifiers.append(quality_modifier)
 
         # BUY ORDERS
         buy_final_prices = []
-        quality_modifiers = []
-        buy_orders = []
         for i in range(enterprise_amount):
-            quality_modifier = get_quality_price_multiplier(60, quality_distribution[i])
-            quality_modifiers.append(quality_modifier)
-            price_point = buy_price * quality_modifier * market_score
+            price_point = buy_price * quality_modifiers[i] * market_score
 
-            buy_order = OrderListing(tg, price_point, buy_goods[i], quality_distribution[i])
-            buy_orders.append(buy_order)
+            buy_order = OrderListing(price_point, buy_goods[i], quality_distribution[i])
+            final_price = self.get_final_price_by_order(buy_order, tg, "Buy")
+            buy_order.calculated_price = final_price
 
-            # TODO: this must be changed when dealing with EEs with more than one trade good
-            ee = EconomyEntity("Enterprise", names[i], [buy_order], [])
-            ees.append(ee)
-
-            buy_final_prices.append(self.get_final_price_by_order(buy_order, tg, "Buy"))
+            buy_final_prices.append(final_price)
+            ees[i].trade_orders[tg]["buy_order"] = buy_order
 
         # SELL ORDERS - create sell orders by determining the sell quantity
         # the total quantity for sell orders is determined by 2equilibrium_quantity - quantity
         # the spread is more smoothed out to give the largest producers still a fair amount with spread = 0.4
         sell_goods = trade_good_distribution(2 * equilibrium - supply, 7, 0.4)
         sell_goods.reverse()
-        sell_orders = []
 
         # get the minimum buying price to then establish a maximum selling price
         max_sell_final_price = min(buy_final_prices) - 1
 
-        sell_final_prices = []
-
         for i in range(enterprise_amount):
-
             price_point = sell_price * quality_modifiers[i] * market_score
 
-            sell_order = OrderListing(tg, price_point, sell_goods[i], quality_distribution[i])
-            sell_orders.append(sell_order)
-            sell_final_prices.append(self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price))
-            ees[i].sell_orders.append(sell_order)
+            sell_order = OrderListing(price_point, sell_goods[i], quality_distribution[i])
+            final_price = self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price)
+            sell_order.calculated_price = final_price
 
+            ees[i].trade_orders[tg]["sell_order"] = sell_order
 
         if 0.75 < ratio < 1.25:
             situation = "Balanced"
@@ -446,12 +476,6 @@ class Market:
         if ratio <= 0.2 or ratio >= 2:
             situation = "Major " + situation
 
-
-        # TODO: replace this with normal lists, tuples are a pain in the ass
-        buy_stuff = list(zip(buy_final_prices, buy_goods))
-        sell_stuff = list(zip(sell_final_prices, sell_goods))
-        self.trade_good_status[tg].cached_buy_orders = buy_stuff
-        self.trade_good_status[tg].cached_sell_orders = sell_stuff
         self.trade_good_status[tg].situation = situation
 
         return ees
@@ -459,19 +483,17 @@ class Market:
     def detailed_listing(self, trade_good, debug=True):
         trade_good_status = self.trade_good_status[trade_good]
 
-        # TODO: Replace this with a proper way to access data about prices and corporations
-        buy_stuff = trade_good_status.cached_buy_orders
-        sell_stuff = trade_good_status.cached_sell_orders
-        enterprise_amount = trade_good_status.get_enterprise_size()
-        names = trade_good_status.cached_names
-        quality_distribution = trade_good_status.cached_qualities
+        buy_orders = [ee.trade_orders[trade_good]["buy_order"] for ee in self.economy_entities]
+        sell_orders = [ee.trade_orders[trade_good]["sell_order"] for ee in self.economy_entities]
+        enterprise_amount = len(self.economy_entities)
+        names = [ee.name for ee in self.economy_entities]
+        quality_distribution = [order.quality for order in buy_orders]
         situation = trade_good_status.situation
 
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range
 
-        p, _ = zip(*buy_stuff)
-        max_sell_final_price = min(p)
+        max_sell_final_price = min([order.calculated_price for order in buy_orders])
 
         print(f"Detailed Listing for {trade_good}")
         if debug:
@@ -479,19 +501,19 @@ class Market:
 
         for i in range(enterprise_amount):
             print(
-                f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_stuff[i][1]:<5}) at {buy_stuff[i][0]:>4}cr | "
-                f"Sell (x{sell_stuff[i][1]:<5}) at {sell_stuff[i][0]:>4}cr - Q:{quality_distribution[i]}")
+                f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr | "
+                f"Sell (x{sell_orders[i].quantity:<5}) at {sell_orders[i].calculated_price:>4}cr - Q:{quality_distribution[i]}")
 
         print(f"Situation - {situation}")
         print(f"Breakoffs - {bracketed_pricing(trade_good_status.equilibrium_quantity)}")
         print(
             f"Available for export: {trade_good_status.available_supply} | Internal supply: "
-            f"{bracketed_pricing(trade_good_status.equilibrium_quantity)[0] - abs(min(0, trade_good_status.available_supply))} "
+            f"{bracketed_pricing(trade_good_status.equilibrium_quantity)[1] - abs(min(0, trade_good_status.available_supply))} "
             f"| Total: {trade_good_status.total_supply}")
 
         # Filter out invalid (zero-quantity) orders for correct total quantity calculation
-        valid_buy_orders = [(p, q) for p, q in buy_stuff if q > 0]
-        valid_sell_orders = [(p, q) for p, q in sell_stuff if q > 0]
+        valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
+        valid_sell_orders = [(order.calculated_price, order.quantity) for order in sell_orders if order.quantity > 0]
 
         # Calculate total valid quantities
         buy_total_quantity = sum(q for _, q in valid_buy_orders) if valid_buy_orders else 1
@@ -500,95 +522,34 @@ class Market:
         # Calculate weighted average price - buying
         buy_weighted_average_price = sum(
             (q / buy_total_quantity) * p for p, q in valid_buy_orders) if valid_buy_orders else \
-            (sum(p for p, _ in buy_stuff) / len(buy_stuff))
+            (sum(order.calculated_price for order in buy_orders) / len(buy_orders) if buy_orders else 0)
         buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
 
         # Calculate weighted average price - selling
         sell_weighted_average_price = sum(
             (q / sell_total_quantity) * p for p, q in valid_sell_orders) if valid_sell_orders else \
-            (sum(p for p, _ in sell_stuff) / len(sell_stuff))
+            (sum(order.calculated_price for order in sell_orders) / len(sell_orders) if sell_orders else 0)
         sell_weighted_average_price = str(round(sell_weighted_average_price)) + "cr"
 
+        # Find min buy price and max sell price, ignoring zero-quantity orders
         if valid_buy_orders:
             min_buy_price = min(valid_buy_orders)[0]
             min_buy_quantity = sum(q for p, q in valid_buy_orders if p == min_buy_price)
         else:
-            min_buy_price, min_buy_quantity = min(buy_stuff)[0], 0
+            min_buy_price, min_buy_quantity = (
+            min(order.calculated_price for order in buy_orders), 0) if buy_orders else (0, 0)
 
         if valid_sell_orders:
             max_sell_price = max(valid_sell_orders)[0]
             max_sell_quantity = sum(q for p, q in valid_sell_orders if p == max_sell_price)
         else:
-            max_sell_price, max_sell_quantity = max(sell_stuff)[0], 0
+            max_sell_price, max_sell_quantity = (
+            max(order.calculated_price for order in sell_orders), 0) if sell_orders else (0, 0)
 
         min_buy_price = str(min_buy_price) + "cr"
         max_sell_price = str(max_sell_price) + "cr"
 
         print(f"Average prices: {buy_weighted_average_price}/{sell_weighted_average_price} "
               f"| Min buy: {min_buy_price} (x{min_buy_quantity}) | Max sell: {max_sell_price} (x{max_sell_quantity})")
-
-
-
-class EconomyEntity:
-    def __init__(self, ee_type, name, buy_orders, sell_orders, trade_good_types=[]):
-        """
-        Abbreviated as "ee"
-
-        :param name: string
-        :param buy_orders: list of OrderListings to buy
-        :param sell_orders: list of OrderListing to sell
-        """
-        self.type = ee_type
-        self.name = name
-
-        # TODO: Replace buy and sell orders that do not differentiate between trade good types with trade orders
-        self.buy_orders = buy_orders
-        self.sell_orders = sell_orders
-
-        # for each trade good type, we have a list for each operation
-        # only need one order for each entity.
-        # only need keys for trade goods that are actually gonna be used
-        self.trade_orders = {
-            key: {"buy_order": None, "sell_order": None}
-            for key in trade_good_types if key in SimulationStatus().TRADE_GOODS_DATA
-        }
-        print(self.trade_orders)
-
-
-    def __str__(self):
-        return f"{self.name} - [{type}] : Buy:{self.buy_orders[0].get_price()} | Sell:{self.sell_orders[0].get_price()}"
-
-    def find_buy_order(self, trade_good):
-        for order in self.buy_orders:
-            if order.trade_good == trade_good:
-                return order
-
-    def find_sell_order(self, trade_good):
-        for order in self.sell_orders:
-            if order.trade_good == trade_good:
-                return order
-
-
-class OrderListing:
-    def __init__(self, trade_good, price_point, quantity, quality='B'):
-        """
-        Only one order listing per trade good to sell and one to buy for each EconomyEntity
-        :param trade_good:
-        :param price_point:
-        :param quantity:
-        """
-        self.trade_good = trade_good
-        self.price_point = price_point
-        self.quantity = quantity
-        self.quality = quality
-
-    def get_price(self, modifiers=1, out_min=0.55, out_max=1.45, in_min=0.5, in_max=1.5):
-        simulation = SimulationStatus()
-        return simulation.inflation * simulation.TRADE_GOODS_DATA[self.trade_good]["base_price"] * self.price_point * modifiers
-                #experimenting without clamping any values since logistic function by itself kinda does this
-                #map_range_max_clamped(, in_min, in_max, out_min, out_max))\
-
-    def __str__(self):
-        return f"{self.trade_good}|{self.price_point}|{self.quantity}|{self.quality}"
 
 
