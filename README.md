@@ -36,10 +36,11 @@ Market:
 
 # Planned features
 - More user interaction in the form of commands like auto-buying/selling from multiple EEs at once.
+- Add an inventory where the user can track of their purchased items and money.
 - Interact with multiple trade goods not just Technology Goods
 - When Selling, your trade goods need to be of a certain quality.
 - In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
-- Passsage of time and price adjustment over time to reflect new supply
+- Passage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
 - Bracketed Pricing - The price of goods changes after a certain quantity reaches a critical deficit or surplus point. Example: buying 100 units costs 20cr each. But buy 101 units and the 101st unit costs 25cr as well as every new unit beyond. Similar how it works in Starsector or X4.
@@ -49,22 +50,30 @@ Market:
 - Procedurally generate markets based on several factors like culture, political system and population
 
 # Data Structures
+SimulationStatus:
+Global information about the simulation that applies to all markets
+
 Market:
-  A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
+A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
+Within a market you will conduct trades
   - Collection of Economy Entities
   - Collection of TradeGoodStatus
 
 TradeGoodStatus:
-  - Trade Good to modifiy, price range modifiers, essential, legality, equilibrium quantity
+Contains parameters and modifiers that apply to an entire market
+  - Trade Good to modify, price range modifiers, essential, legality, equilibrium quantity
 
 Economy Entity:
+Buys and sells trade goods
 An EE can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
   - Collection of Order Listing
 
 Order Listing:
+Information about an individual demand to buy or sell an amount of goods
   - Operation (buy or sell), supply or demand quantity, price point modifier
 
 Trade Good Item (Planned):
+Whenever you buy trade goods, they're converted to items and placed on your inventory
   - Name
   - Price Bought
   - Place of origin

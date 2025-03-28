@@ -104,7 +104,7 @@ if __name__ == "__main__":
                 if 0 < int(params[0]) < len(filtered_ees) + 1 and int(params[1] > 0):
                     quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
                     if quantity > 0:
-                        print(f"You sold {quantity} {tg} from {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
+                        print(f"You sold {quantity} {tg} to {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
                     else:
                         print("Need at least 1 unit to sell")
                 else:
@@ -117,9 +117,10 @@ if __name__ == "__main__":
                   "q to quit\n"
                   "b [corporation index] [quantity] - to buy\n"
                   "s [corporation index] [quantity] - to sell\n"
-                  "l - to show detailed listing\n"
-                  "bl [corporation index] [quantity] - buy and show detailed listing\n"
-                  "sl [corporation index] [quantity] - sell and show detailed listing\n"
+                  "l - to show detailed listing. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
+                  "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
+                  "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
+                  "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n"
                   "h or help - show this command list ")
 
         if command in ["l", "bl", "sl"]:
