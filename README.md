@@ -50,30 +50,30 @@ Market:
 - Procedurally generate markets based on several factors like culture, political system and population
 
 # Data Structures
-SimulationStatus:
+### SimulationStatus:
 Global information about the simulation that applies to all markets
 
-Market:
+### Market
 A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
 Within a market you will conduct trades
-  - Collection of Economy Entities grouped by trade good type
+  - Collection of Order Listing grouped by trade good type
   - Collection of TradeGoodStatus grouped by trade good type
 
-TradeGoodStatus:
+### TradeGoodStatus
 Contains parameters and modifiers that apply to an entire market
   - Trade Good to modify, price range modifiers, essential, legality, equilibrium quantity
 
-Order Listing:
+### Order Listing
 Information about an individual demand to buy or sell an amount of goods
   - Operation (buy or sell), supply or demand quantity, price point modifier
   - The Economy Entity it belongs to
 
-Economy Entity:
+### Economy Entity
 Buys and sells trade goods
 An EE can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
     - Name and Type
 
-Trade Good Item (Planned):
+### Trade Good Item (Planned)
 Whenever you buy trade goods, they're converted to items and placed on your inventory
   - Name
   - Price Bought
