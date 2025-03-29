@@ -28,6 +28,11 @@ class SimulationStatus(object):
         "Ammunition":       {"base_price": 15,  "base_range": 0.20},
     }
 
+    DEFICIT_SUPPLY_RATIO = 0.75
+    MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
+    SURPLUS_SUPPLY_RATIO = 1.25
+    MAJOR_SURPLUS_SUPPLY_RATIO = 2.0
+
     # changes based on trade difficulty so we can reinitialize with different values
     global_trade_good_status = {
         key: {"price_range": value["base_range"]}
@@ -49,32 +54,10 @@ class SimulationStatus(object):
         print(self.inflation)
 
 
-class OrderListing:
-    def __init__(self, price_point : float, quantity : int, quality='B'):
-        """
-        Only one order listing per trade good to sell and one to buy for each EconomyEntity
-        :param price_point
-        :param quantity:
-        """
-        self.price_point = price_point
-        self.quantity = quantity
-        self.quality = quality
-
-        self.calculated_price = 0
-
-    def get_price(self, trade_good, modifiers=1):
-        simulation = SimulationStatus()
-        return simulation.inflation * simulation.TRADE_GOODS_DATA[trade_good][
-            "base_price"] * self.price_point * modifiers
-    # at worst case scenario the price points can be as low
-    # 0.8x market score, 0.975x fluctuation, 0.8x quality modifier, (1 - highest value in trade goods data)x
-    # and as high as
-    # 1.2x market score, 1.025x fluctuation, 1.2 quality modifier, 1.6x price range
-    # this becomes a max theoretical range of 0.25x-2.36x not factoring market modifiers.
-
 class EconomyEntity:
     def __init__(self, ee_type : str, name : str, trade_good_types : list):
         """
+        Someone wanting to buy and sell trade goods
         Abbreviated as "ee"
         :param ee_type: "Enterprise" or "Individual"
         :param name: name of the enterprise like Technology Inc. or if individual John Smith
@@ -87,7 +70,7 @@ class EconomyEntity:
         # for each trade good type, we have two orders, one for each operation.
         # only need keys for trade goods that are actually gonna be used
         self.trade_orders = {
-            key: {"buy_order": OrderListing(1, 1), "sell_order": OrderListing(1, 1)}
+            key: {"buy_order": OrderListing(1, 1, self), "sell_order": OrderListing(1, 1, self)}
             for key in trade_good_types if key in SimulationStatus().TRADE_GOODS_DATA
         }
 
@@ -96,13 +79,39 @@ class EconomyEntity:
 
     def add_trade_good_type(self, trade_good : str):
         if trade_good in SimulationStatus().TRADE_GOODS_DATA and trade_good not in self.trade_orders:
-            self.trade_orders[trade_good] = {"buy_order": OrderListing(1, 1), "sell_order": OrderListing(1, 1)}
+            self.trade_orders[trade_good] = {"buy_order": OrderListing(1, 1, self), "sell_order": OrderListing(1, 1, self)}
 
     def find_buy_order(self, trade_good : str):
         return self.trade_orders[trade_good]["buy_order"]
 
     def find_sell_order(self, trade_good : str):
         return self.trade_orders[trade_good]["sell_order"]
+
+class OrderListing:
+    def __init__(self, price_point : float, quantity : int, economy_entity : EconomyEntity, quality='B'):
+        """
+        Only one order listing per trade good to sell and one to buy for each EconomyEntity
+        :param price_point
+        :param quantity:
+        """
+        self.price_point = price_point
+        self.quantity = quantity
+        self.quality = quality
+
+        self.calculated_price = 0
+        self.economy_entity = economy_entity
+
+    def get_price(self, trade_good, modifiers=1):
+        simulation = SimulationStatus()
+        return simulation.inflation * simulation.TRADE_GOODS_DATA[trade_good][
+            "base_price"] * self.price_point * modifiers
+    # at worst case scenario the price points can be as low
+    # 0.8x market score, 0.975x fluctuation, 0.8x quality modifier, (1 - highest value in trade goods data)x
+    # and as high as
+    # 1.2x market score, 1.025x fluctuation, 1.2 quality modifier, 1.6x price range
+    # this becomes a max theoretical range of 0.25x-2.36x not factoring market modifiers.
+
+
 
 
 def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
@@ -313,6 +322,22 @@ class Market:
         self.economy_entities = economy_entities
         self.trade_good_status = trade_good_status
 
+        # We can opt to instead of having a collection of EEs, we have a dict of orders for each trade good type like we
+        # have with EE and their dict of orders.
+        # then an order listing has a reference to an EE instead.
+        # This way it's easier to handle orders by type cause we don't have to filter EEs based on their orders
+        # we can also easily determine which order belongs to an Enterprise or Individual Corporation
+
+        self.buy_orders = {
+            key: []
+            for key in SimulationStatus().TRADE_GOODS_DATA.keys()
+        }
+
+        self.sell_orders = {
+            key: []
+            for key in SimulationStatus().TRADE_GOODS_DATA.keys()
+        }
+
     def buy_sell(self, filtered_ees, ee_index, trade_good, quantity, operation):
         try:
             if operation == "Buy":
@@ -449,12 +474,13 @@ class Market:
         for i in range(enterprise_amount):
             price_point = buy_price * quality_modifiers[i] * market_score
 
-            buy_order = OrderListing(price_point, buy_goods[i], quality_distribution[i])
+            buy_order = OrderListing(price_point, buy_goods[i], ees[i], quality_distribution[i])
             final_price = self.get_final_price_by_order(buy_order, tg, "Buy")
             buy_order.calculated_price = final_price
 
             buy_final_prices.append(final_price)
             ees[i].trade_orders[tg]["buy_order"] = buy_order
+            self.buy_orders[tg].append(buy_order)
 
         # SELL ORDERS - create sell orders by determining the sell quantity
         # the total quantity for sell orders is determined by 2equilibrium_quantity - quantity
@@ -468,11 +494,12 @@ class Market:
         for i in range(enterprise_amount):
             price_point = sell_price * quality_modifiers[i] * market_score
 
-            sell_order = OrderListing(price_point, sell_goods[i], quality_distribution[i])
+            sell_order = OrderListing(price_point, sell_goods[i], ees[i], quality_distribution[i])
             final_price = self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price)
             sell_order.calculated_price = final_price
 
             ees[i].trade_orders[tg]["sell_order"] = sell_order
+            self.sell_orders[tg].append(sell_order)
 
         if 0.75 < ratio < 1.25:
             situation = "Balanced"
