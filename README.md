@@ -56,21 +56,22 @@ Global information about the simulation that applies to all markets
 Market:
 A Market is a collection of corporations and individuals (Economy Entities) that are part of a single Planet or Space Station.
 Within a market you will conduct trades
-  - Collection of Economy Entities
-  - Collection of TradeGoodStatus
+  - Collection of Economy Entities grouped by trade good type
+  - Collection of TradeGoodStatus grouped by trade good type
 
 TradeGoodStatus:
 Contains parameters and modifiers that apply to an entire market
   - Trade Good to modify, price range modifiers, essential, legality, equilibrium quantity
 
-Economy Entity:
-Buys and sells trade goods
-An EE can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
-  - Collection of Order Listing
-
 Order Listing:
 Information about an individual demand to buy or sell an amount of goods
   - Operation (buy or sell), supply or demand quantity, price point modifier
+  - The Economy Entity it belongs to
+
+Economy Entity:
+Buys and sells trade goods
+An EE can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
+    - Name and Type
 
 Trade Good Item (Planned):
 Whenever you buy trade goods, they're converted to items and placed on your inventory

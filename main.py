@@ -1,6 +1,6 @@
 import re
 
-from economy_entity import *
+from market import *
 from math2 import clamp
 
 def parse_command(user_input):
@@ -88,10 +88,10 @@ if __name__ == "__main__":
         if command == "b" or command == "bl":
             if len(params) >= 2:
                 quantity = int(params[1])
-                if 0 < int(params[0]) < len(filtered_ees) + 1 and int(params[1] > 0):
-                    quantity, order = market.buy_sell(filtered_ees, params[0] - 1, "Technology Goods", params[1], "Buy")
+                if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
+                    quantity, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Buy")
                     if quantity > 0:
-                        print(f"You bought {quantity} {tg} from {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
+                        print(f"You bought {quantity} {tg} from {order.economy_entity.name} for a total of {order.calculated_price * quantity}cr!")
                     else:
                         print("Need at least 1 unit to buy")
                 else:
@@ -101,14 +101,14 @@ if __name__ == "__main__":
 
         if command == "s" or command == "sl":
             if len(params) >= 2:
-                if 0 < int(params[0]) < len(filtered_ees) + 1 and int(params[1] > 0):
-                    quantity, order = market.buy_sell(params[0] - 1, "Technology Goods", params[1], "Sell")
+                if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
+                    quantity, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Sell")
                     if quantity > 0:
-                        print(f"You sold {quantity} {tg} to {filtered_ees[params[0]].name} for a total of {order.calculated_price * quantity}cr!")
+                        print(f"You sold {quantity} {tg} to {order.economy_entity.name} for a total of {order.calculated_price * quantity}cr!")
                     else:
                         print("Need at least 1 unit to sell")
                 else:
-                        print("Input a valid corporation index number and a positive quantity number")
+                    print("Input a valid corporation index number and a positive quantity number")
             else:
                 print(f"Usage: s{"l" if command == "bl" else ""} [corporation index] [quantity]")
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                   "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n"
                   "h or help - show this command list ")
 
-        if command in ["l", "bl", "sl"]:
+        if command[-1] == 'l':
             market.detailed_listing(tg)
 
         player_input = input("> ")
