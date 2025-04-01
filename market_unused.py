@@ -215,15 +215,15 @@ trade_statuses = {
 #market.generate_new_ees(False)
 
 market.trade_good_listing("Technology Goods")
-player_input = input("w to wait, q to quit :> ")
-while player_input.lower() != "q" or player_input.lower() != "quit" or player_input.lower() != "exit":
-    if player_input.lower() == "w" or player_input.lower() == "wait":
+command_input = input("w to wait, q to quit :> ")
+while command_input.lower() != "q" or command_input.lower() != "quit" or command_input.lower() != "exit":
+    if command_input.lower() == "w" or command_input.lower() == "wait":
         #clear screen, calculate new prices and display
         #os.system('cls' if os.name == 'nt' else 'clear')
         print("\n" * 10)
         market.recalculate_prices()
         market.trade_good_listing("Technology Goods")
         print(market.trade_good_status["Technology Goods"].daily_fluctuation)
-        player_input = input("w to wait, q to quit :> ")
+        command_input = input("w to wait, q to quit :> ")
 #market.summary_listing("Technology Goods")
 """

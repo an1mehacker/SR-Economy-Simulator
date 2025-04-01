@@ -1,16 +1,11 @@
 ﻿import math
 import random
+from idlelib.window import register_callback
+
 from math2 import lerp, clamp, map_range_clamped
+from dataclasses import dataclass
 
-
-class SimulationStatus(object):
-    # Singleton
-    def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(SimulationStatus, cls).__new__(cls)
-        return cls.instance
-
-    TRADE_GOODS_DATA = {
+TRADE_GOODS_DATA = {
         "Organics":         {"base_price": 17,  "base_range": 0.40},
         "Synthetics":       {"base_price": 13,  "base_range": 0.35},
         "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
@@ -28,65 +23,98 @@ class SimulationStatus(object):
         "Ammunition":       {"base_price": 15,  "base_range": 0.20},
     }
 
-    DEFICIT_SUPPLY_RATIO = 0.75
-    MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
-    SURPLUS_SUPPLY_RATIO = 1.25
-    MAJOR_SURPLUS_SUPPLY_RATIO = 2.0
+DEFICIT_SUPPLY_RATIO = 0.75
+MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
+SURPLUS_SUPPLY_RATIO = 1.25
+MAJOR_SURPLUS_SUPPLY_RATIO = 2.0
 
-    # changes based on trade difficulty so we can reinitialize with different values
-    global_trade_good_status = {
-        key: {"price_range": value["base_range"]}
-        for key, value in TRADE_GOODS_DATA.items()
-    }
+# it takes 10 000 days to reach 4.0 inflation
+MAX_INFLATION_DAYS = 10000
+MAX_INFLATION = 4.0
 
-    trade_difficulty = 1
-    inflation = 1.0
-    days_elapsed = 0 #we increase inflation every day until we reach 4.0 at 10 000 days
-    MAX_INFLATION_DAYS = 10000
+class SimulationStatus(object):
+    #This is a singleton
+    _instance = None
+
+    def __init__(self):
+        self.trade_difficulty = 1
+        self.inflation = 1.0
+        self.days_elapsed = 0
+        self.global_trade_good_status = {
+            key: {"price_range": value["base_range"]}
+            for key, value in TRADE_GOODS_DATA.items()
+        }
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SimulationStatus, cls).__new__(cls)
+        return cls._instance
 
     def skip_day(self):
         self.days_elapsed += 1
-        self.inflation = lerp(1.0, 4.0, clamp(self.days_elapsed / self.MAX_INFLATION_DAYS, 0, self.MAX_INFLATION_DAYS))
+        self.inflation = lerp(1.0, MAX_INFLATION, clamp(self.days_elapsed / MAX_INFLATION_DAYS, 0, MAX_INFLATION_DAYS))
 
     def set_to_day(self, day):
         self.days_elapsed = day - 1
         self.skip_day()
         print(self.inflation)
 
-
+@dataclass
 class EconomyEntity:
-    def __init__(self, ee_type : str, name : str):
-        """
-        Someone wanting to buy and sell trade goods. Abbreviated as "ee"
-        :param ee_type: "Enterprise" or "Individual"
-        :param name: name of the enterprise like Technology Inc. or if individual John Smith
-        """
-        self.type = ee_type
-        self.name = name
+    """
+    :param ee_type: "Enterprise" or "Individual"
+    :param name: name of the enterprise like Technology Inc. or if individual John Smith
+    """
+    ee_type: str
+    name: str
 
+@dataclass
 class OrderListing:
-    def __init__(self, price_point : float, quantity : int, economy_entity : EconomyEntity, quality='B'):
-        """
-        Only one order listing per trade good to sell and one to buy for each EconomyEntity
-        :param price_point
-        :param quantity:
-        """
-        self.price_point = price_point
-        self.quantity = quantity
-        self.quality = quality
+    price_point: float
+    quantity: int
+    economy_entity: EconomyEntity
+    quality_point: float
+    quality: str
 
-        self.calculated_price = 0
-        self.economy_entity = economy_entity
+class TradeGoodStatus:
+    def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
+                 equilibrium_quantity, total_supply):
+        """
+        A status for a trade good that applies to an entire market
 
-    def get_price(self, trade_good, modifiers=1):
-        simulation = SimulationStatus()
-        return simulation.inflation * simulation.TRADE_GOODS_DATA[trade_good][
-            "base_price"] * self.price_point * modifiers
-    # at worst case scenario the price points can be as low
-    # 0.8x market score, 0.975x fluctuation, 0.8x quality modifier, (1 - highest value in trade goods data)x
-    # and as high as
-    # 1.2x market score, 1.025x fluctuation, 1.2 quality modifier, 1.6x price range
-    # this becomes a max theoretical range of 0.25x-2.36x not factoring market modifiers.
+        :param essential: 'Non-Essential' or 'Essential'
+        :param legality: 'Legal' or 'Illegal'
+        :param max_fluctuation: 0.025 for a 5% range. This value is then used to calculate new daily fluctutation
+        :param daily_fluctuation: a value between 0.975 and 1.025. Applied both for buy and sell.
+        :param buy_modifiers: list of floats, modifiers like random sell-off or deficit event.
+        Both this and fluctuation value are all added multiplicatively to the final value.
+        :param sell_modifiers: same but for selling
+        :param equilibrium_quantity: the total quantity at which the price becomes base price. this value influences
+        the final price through a supply and demand logistical function
+        """
+        self.essential = essential
+        self.legality = legality
+        self.max_fluctuation = max_fluctuation
+        self.daily_fluctuation = daily_fluctuation
+        self.buy_modifiers = buy_modifiers
+        self.sell_modifiers = sell_modifiers
+        self.equilibrium_quantity = equilibrium_quantity
+        self.total_supply = total_supply
+        self.available_supply = 0
+
+        self.buy_price, self.sell_price = 0, 0
+
+        self.situation = "Idk"
+
+    def calculate_new_daily_fluctuation(self):
+        self.daily_fluctuation = random.uniform(1 - self.max_fluctuation, 1 + self.max_fluctuation)
+
+    def get_buy_modifier(self) -> float:
+        return self.daily_fluctuation * (math.prod(self.buy_modifiers) if self.buy_modifiers else 1)
+
+    def get_sell_modifier(self) -> float:
+        return self.daily_fluctuation * (math.prod(self.sell_modifiers) if self.sell_modifiers else 1)
+
 
 def calculate_price_logistic(min_multiplier, max_multiplier, supply_ratio, buy_k=0.95, min_sell_discount=0.8,
                              max_sell_discount=0.98, sell_k=10):
@@ -154,97 +182,36 @@ def trade_good_distribution(total_goods, num_slots, spread_multiplier=0.75):
     for i in range(abs(difference)):
         if difference > 0:
             distribution[i % num_slots] += 1  # Add to the first elements
-        elif difference < 0 and distribution[i % num_slots] > 0:
+        elif difference < 0 < distribution[i % num_slots]:
             distribution[i % num_slots] -= 1  # Remove from nonzero elements
 
     return distribution
 
 
-class TradeGoodStatus:
-    def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
-                 equilibrium_quantity, total_supply):
-        """
-        A status for a trade good that applies to an entire market
-
-        :param essential: 'Non-Essential' or 'Essential'
-        :param legality: 'Legal' or 'Illegal'
-        :param max_fluctuation: 0.025 for a 5% range. This value is then used to calculate new daily fluctutation
-        :param daily_fluctuation: a value between 0.975 and 1.025. Applied both for buy and sell.
-        :param buy_modifiers: list of floats, modifiers like random sell-off or deficit event.
-        Both this and fluctuation value are all added multiplicatively to the final value.
-        :param sell_modifiers: same but for selling
-        :param equilibrium_quantity: the total quantity at which the price becomes base price. this value influences
-        the final price through a supply and demand logistical function
-        """
-        self.essential = essential
-        self.legality = legality
-        self.max_fluctuation = max_fluctuation
-        self.daily_fluctuation = daily_fluctuation
-        self.buy_modifiers = buy_modifiers
-        self.sell_modifiers = sell_modifiers
-        self.equilibrium_quantity = equilibrium_quantity
-        self.total_supply = total_supply
-        self.available_supply = 0
-
-        # for display
-        self.buy_price, self.sell_price = 0, 0
-
-        self.situation = "Idk"
-
-    def calculate_new_daily_fluctuation(self):
-        self.daily_fluctuation = random.uniform(1 - self.max_fluctuation, 1 + self.max_fluctuation)
-
-    def get_buy_modifier(self) -> float:
-        return self.daily_fluctuation * (math.prod(self.buy_modifiers) if self.buy_modifiers else 1)
-
-    def get_sell_modifier(self) -> float:
-        return self.daily_fluctuation * (math.prod(self.sell_modifiers) if self.sell_modifiers else 1)
-
-
 def get_quality_price_multiplier(base_price, quality):
-    """
-    Determines a price point multiplier based on quality.
-    """
-    if base_price >= 20:
-        quality_ranges = {
-            'D': (0.95, 0.975),
-            'C': (0.975, 1.0),
-            'B': (1.0, 1.025),
-            'A': (1.025, 1.05)
-        }
-        min_range, max_range = 0.95, 1.05
+    quality_ranges = {
+        'D': (0.80, 0.9) if base_price < 20 else (0.95, 0.975),
+        'C': (0.9, 1.0) if base_price < 20 else (0.975, 1.0),
+        'B': (1.0, 1.1) if base_price < 20 else (1.0, 1.025),
+        'A': (1.0, 1.2) if base_price < 20 else (1.025, 1.05)
+    }
+
+    full_range = (0.80, 1.2) if base_price < 20 else (0.95, 1.05)
+
+    # Define the chance of selecting the full range
+    full_range_chance = {
+        'D': 0.2,
+        'C': 0.3,
+        'B': 0.3,
+        'A': 0.2
+    }
+
+    if random.random() < full_range_chance.get(quality, 0):
+        base_min, base_max = full_range
     else:
-        quality_ranges = {
-            'D': (0.80, 0.9),
-            'C': (0.9, 1.0),
-            'B': (1.0, 1.1),
-            'A': (1.0, 1.20)
-        }
-        min_range, max_range = 0.8, 1.2
+        base_min, base_max = quality_ranges[quality]
 
-    base_min, base_max = quality_ranges[quality]
-
-    # Define weights for different ranges (bias towards expected range)
-    if quality == 'D':
-        return random.choices(
-            [random.uniform(base_min, base_max), random.uniform(min_range, max_range)],
-            weights=[0.8, 0.2]
-        )[0]
-    elif quality == 'C':
-        return random.choices(
-            [random.uniform(base_min, base_max), random.uniform(min_range, max_range)],
-            weights=[0.7, 0.3]
-        )[0]
-    elif quality == 'B':
-        return random.choices(
-            [random.uniform(base_min, base_max), random.uniform(min_range, max_range)],
-            weights=[0.7, 0.3]
-        )[0]
-    elif quality == 'A':
-        return random.choices(
-            [random.uniform(base_min, base_max), random.uniform(min_range, max_range)],
-            weights=[0.8, 0.2]
-        )[0]
+    return random.uniform(base_min, base_max)
 
 
 def bracketed_pricing(equilibrium):
@@ -253,17 +220,42 @@ def bracketed_pricing(equilibrium):
     # in respect to the operation meaning We buy, only buy price gets recalculated, sell, only sell prices etc etc
     # The market will still gradually adjust their prices over a period of 60-70 days.
     # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
-    return round(0.2 * equilibrium), round(0.75 * equilibrium), round(1.25 * equilibrium), round(2 * equilibrium)
 
-def check_breakpoint_change(equilibrium, before_supply, after_supply) -> bool:
+    return (round(MAJOR_DEFICIT_SUPPLY_RATIO * equilibrium), round(DEFICIT_SUPPLY_RATIO * equilibrium),
+            round(SURPLUS_SUPPLY_RATIO * equilibrium), round(MAJOR_SURPLUS_SUPPLY_RATIO * equilibrium))
+
+def bracketed_pricing_with_breakpoint(equilibrium, supply_ratio):
+    # Get breakoff quantity values at 0.75, 0.2, 1.25 and 2
+    # Any time those supply ratios are exceeded whether by buying or selling, the prices immediately recalculate
+    # in respect to the operation meaning We buy, only buy price gets recalculated, sell, only sell prices etc etc
+    # The market will still gradually adjust their prices over a period of 60-70 days.
+    # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
+    a = round(MAJOR_DEFICIT_SUPPLY_RATIO * equilibrium)
+    b = round(DEFICIT_SUPPLY_RATIO * equilibrium)
+    c = round(SURPLUS_SUPPLY_RATIO * equilibrium)
+    d = round(MAJOR_SURPLUS_SUPPLY_RATIO * equilibrium)
+
+    if supply_ratio <= MAJOR_DEFICIT_SUPPLY_RATIO:  # 0.2
+        current_breakpoint = a
+    elif supply_ratio <= DEFICIT_SUPPLY_RATIO:  # 0.75
+        current_breakpoint = b
+
+    if supply_ratio > MAJOR_SURPLUS_SUPPLY_RATIO:  # 2.0
+        current_breakpoint = d
+    else:
+        current_breakpoint = c
+
+    return (a, b, c, d), current_breakpoint
+
+def check_breakpoint_change(equilibrium, before_supply, after_supply):
     # True if the change in supply has surpassed a critical breakpoint (positively or negatively)
-    breakpoints = bracketed_pricing(equilibrium)
+    breakpoints, new_supply_breakpoint = bracketed_pricing_with_breakpoint(equilibrium, after_supply / equilibrium)
     break_point_1, break_point_2 = 0, 0
     for i, point in enumerate(breakpoints):
         break_point_1 = i if before_supply < point and break_point_1 == 0 else break_point_1
         break_point_2 = i if after_supply < point  and break_point_2 == 0 else break_point_2
 
-    return break_point_1 != break_point_2
+    return break_point_1 != break_point_2, new_supply_breakpoint
 
 
 def calculate_price_ranges(trade_difficulty):
@@ -302,13 +294,50 @@ class Market:
 
         self.buy_orders = {
             key: []
-            for key in SimulationStatus().TRADE_GOODS_DATA.keys()
+            for key in TRADE_GOODS_DATA.keys()
         }
 
         self.sell_orders = {
             key: []
-            for key in SimulationStatus().TRADE_GOODS_DATA.keys()
+            for key in TRADE_GOODS_DATA.keys()
         }
+
+    def recalculate_prices(self, trade_good, operation, full_recalculate=False, breakpoint_quantity=100, ):
+        self.trade_good_status[trade_good].calculate_new_daily_fluctuation()
+
+
+        if full_recalculate:
+            status = self.trade_good_status[trade_good]
+            price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
+            floor, ceil = 1 - price_range, 1 + price_range
+            ratio = breakpoint_quantity / status.equilibrium_quantity if status.equilibrium_quantity != 0 else breakpoint_quantity
+
+            buy_price, sell_price = calculate_price_logistic(floor, ceil, ratio)
+            sell_ratio = sell_price / buy_price if buy_price != 0 else 0.9
+            sell_price = sell_price * sell_ratio
+
+            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
+
+            # Only recalculate to the same operation we're executing
+            if operation == "Buy":
+                for buy_order in self.buy_orders[trade_good]:
+                    buy_order.price_point = buy_price * buy_order.quality_point * self.development_score
+                    buy_order.calculated_price = self.get_final_price_by_order(buy_order, trade_good, "Buy")
+
+            if operation == "Sell":
+                buy_prices = []
+                for buy_order in self.buy_orders[trade_good]:
+                    buy_prices.append(buy_order.calculated_price)
+                minimum_price = min(buy_prices)
+
+                for sell_order in self.sell_orders[trade_good]:
+                    sell_order.price_point = sell_price * sell_order.quality_point * self.development_score
+                    sell_order.calculated_price = self.get_final_price_by_order(sell_order, trade_good, "Sell", minimum_price)
+        else:
+            for buy_order in self.buy_orders[trade_good]:
+                buy_order.calculated_price = self.get_final_price_by_order(buy_order, trade_good, "Buy")
+            for sell_order in self.sell_orders[trade_good]:
+                sell_order.calculated_price = self.get_final_price_by_order(sell_order, trade_good, "Sell")
 
     def buy_sell(self, orders, order_index, trade_good, quantity, operation):
         try:
@@ -332,7 +361,6 @@ class Market:
                 # TODO: add checks to make sure these values don't get weird
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply - quantity_operated
-
             else:
                 self.sell_orders[trade_good][order_index] = order
                 self.buy_orders[trade_good][order_index].quantity += quantity_operated
@@ -340,9 +368,11 @@ class Market:
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply + quantity_operated
                 self.trade_good_status[trade_good].available_supply = self.trade_good_status[trade_good].available_supply + quantity_operated
 
-            if check_breakpoint_change(self.trade_good_status[trade_good].equilibrium_quantity, before_total,
-                                       self.trade_good_status[trade_good].total_supply):
-                print("Breakpoint reached - recalculate!")
+            check, breakpoint_quantity = check_breakpoint_change(self.trade_good_status[trade_good].equilibrium_quantity, before_total,
+                                    self.trade_good_status[trade_good].total_supply)
+            if check:
+                print(f"Breakpoint reached - recalculating {operation} orders at {breakpoint_quantity} supply!")
+                self.recalculate_prices(trade_good, operation,True, breakpoint_quantity)
 
             return quantity_operated, order
         except IndexError:
@@ -351,23 +381,22 @@ class Market:
 
     def get_final_price_by_order(self, order_listing, trade_good, operation, min_buy_price=1000000):
         if operation == "Buy":
-            return round(order_listing.get_price(trade_good, self.trade_good_status[trade_good].get_buy_modifier()))
+            return round(SimulationStatus().inflation * TRADE_GOODS_DATA[trade_good]["base_price"] *
+                         order_listing.price_point * self.trade_good_status[trade_good].get_buy_modifier())
         elif operation == "Sell":
-            return min(round(order_listing.get_price(trade_good, self.trade_good_status[trade_good].get_sell_modifier())), min_buy_price)
-
-    def recalculate_prices(self):
-        for trade_status in self.trade_good_status:
-            self.trade_good_status[trade_status].calculate_new_daily_fluctuation()
+            return min(round(SimulationStatus().inflation * TRADE_GOODS_DATA[trade_good]["base_price"] *
+                         order_listing.price_point * self.trade_good_status[trade_good].get_sell_modifier()), min_buy_price)
 
     @staticmethod
     def generate_market(market_name, equilibrium, supply, market_score):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 0.025, 1,
                                         [], [], 500, 480)
 
-        trade_data = SimulationStatus().TRADE_GOODS_DATA
         temp_trade_statuses = {}
 
-        for trade_good in trade_data:
+        # TODO: Needs a method to create each trade good status based on market's conditions
+
+        for trade_good in TRADE_GOODS_DATA:
             temp_trade_statuses[trade_good] = trade_status1
 
 
@@ -427,6 +456,8 @@ class Market:
         buy_price, sell_price = calculate_price_logistic(floor, ceil, ratio)
         sell_ratio = sell_price / buy_price if buy_price != 0 else 0.9
 
+        self.trade_good_status[tg].buy_price, self.trade_good_status[tg].sell_price = buy_price, sell_price
+
         #we adjust the sell price to account for intersection between the lowest buying prices and maximum selling prices
         #higher supply - greater divide between buy and sell price and vice versa
         sell_price = sell_price * sell_ratio
@@ -444,9 +475,10 @@ class Market:
         for i in range(enterprise_amount):
             price_point = buy_price * quality_modifiers[i] * market_score
 
-            buy_order = OrderListing(price_point, buy_goods[i], ees[i], quality_distribution[i])
+            buy_order = OrderListing(price_point, buy_goods[i], ees[i], quality_modifiers[i], quality_distribution[i])
             final_price = self.get_final_price_by_order(buy_order, tg, "Buy")
             buy_order.calculated_price = final_price
+            buy_order.quality_point = quality_modifiers[i]
 
             buy_final_prices.append(final_price)
             self.buy_orders[tg].append(buy_order)
@@ -463,9 +495,10 @@ class Market:
         for i in range(enterprise_amount):
             price_point = sell_price * quality_modifiers[i] * market_score
 
-            sell_order = OrderListing(price_point, sell_goods[i], ees[i], quality_distribution[i])
+            sell_order = OrderListing(price_point, sell_goods[i], ees[i], quality_modifiers[i], quality_distribution[i])
             final_price = self.get_final_price_by_order(sell_order, tg, "Sell", max_sell_final_price)
             sell_order.calculated_price = final_price
+            sell_order.quality_point = quality_modifiers[i]
 
             self.sell_orders[tg].append(sell_order)
 
