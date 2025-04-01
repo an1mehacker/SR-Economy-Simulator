@@ -11,7 +11,7 @@ To use this project, run main.py and enter a desired amount for the market param
 - The prices will reflect the status following supply and demand law 
 - When supply is low, selling prices approach buying prices to incentivize selling
 - Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
-- Bracketed Pricing - Prices recalculate after reaching critical breakpoints, but not automatically split prices per operation for now.
+- Bracketed Pricing - Prices recalculate after reaching critical breakpoints
 
 Here's an example use
 ![](images/pic1.png?)

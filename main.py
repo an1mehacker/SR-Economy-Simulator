@@ -74,6 +74,7 @@ if __name__ == "__main__":
 
     tg = "Technology Goods"
     market = Market.generate_market("Planet", equilibrium, supply, development_score)
+    market.add_goods(tg, 5139)
 
     filtered_ees = market.detailed_listing(tg)
     command_input = input("w to skip time\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nl to show detailed listing\nh or help for complete command list\n> ")
@@ -87,9 +88,17 @@ if __name__ == "__main__":
         if command == "b" or command == "bl":
             if len(params) >= 2:
                 if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                    quantity, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Buy")
-                    if quantity > 0:
-                        print(f"You bought {quantity} {tg} from {order.economy_entity.name} for a total of {order.calculated_price * quantity}cr!")
+                    quantities, prices, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Buy")
+                    if len(quantities) == 1 and quantities[0] > 0:
+                        print(f"You bought {quantities[0]} {tg} from {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
+                    elif len(quantities) > 1:
+                        yep = list(zip(quantities, prices))
+                        cost = 0
+                        for o in yep:
+                            cost += o[0] * o[1]
+                            print(f"You bought {o[0]} {tg} from {order.economy_entity.name} at {o[1]}cr each")
+
+                        print(f"Totaling {sum(quantities)} {tg} for {cost}cr!")
                     else:
                         print("Need at least 1 unit to buy")
                 else:
@@ -100,15 +109,25 @@ if __name__ == "__main__":
         if command == "s" or command == "sl":
             if len(params) >= 2:
                 if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                    quantity, order = market.buy_sell(market.sell_orders[tg], params[0] - 1, "Technology Goods", params[1], "Sell")
-                    if quantity > 0:
-                        print(f"You sold {quantity} {tg} to {order.economy_entity.name} for a total of {order.calculated_price * quantity}cr!")
+                    quantities, prices, order = market.buy_sell(market.sell_orders[tg], params[0] - 1, "Technology Goods", params[1], "Sell")
+                    if len(quantities) == 1:
+                        print(f"You sold {quantities[0]} {tg} to {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
                     else:
                         print("Need at least 1 unit to sell")
                 else:
                     print("Input a valid corporation index number and a positive quantity number")
             else:
                 print(f"Usage: s{"l" if command == "bl" else ""} [corporation index] [quantity]")
+
+        """
+        if command == "da":
+            if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
+                # debug add
+
+        if command == "dr":
+            if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
+                # debug remove
+        """
 
         if command == "h":
             print("w [number of days: optional] to skip time\n"
