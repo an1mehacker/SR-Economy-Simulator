@@ -11,6 +11,7 @@ To use this project, run main.py and enter a desired amount for the market param
 - The prices will reflect the status following supply and demand law 
 - When supply is low, selling prices approach buying prices to incentivize selling
 - Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
+- Bracketed Pricing - Prices recalculate after reaching critical breakpoints, but not smoothly.
 
 Here's an example use
 ![](images/pic1.png?)
@@ -43,7 +44,6 @@ Market:
 - Passage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
-- Bracketed Pricing - The price of goods changes after a certain quantity reaches a critical deficit or surplus point. Example: buying 100 units costs 20cr each. But buy 101 units and the 101st unit costs 25cr as well as every new unit beyond. Similar how it works in Starsector or X4.
 - Add random events where prices change
 - Add some kind of supply chains where to produce certain goods you need others
 - Item grouping by price, place of origin and quality.
