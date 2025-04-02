@@ -484,9 +484,14 @@ class Market:
                             order_breakpoint_prices.append(price)
                             order_breakpoint_quantities.append(quantity)
 
-                self.recalculate_prices(trade_good, operation, before_total, True)
-                order_breakpoint_quantities.append(quantity)
-                order_breakpoint_prices.append(order.calculated_price)
+                    self.recalculate_prices(trade_good, operation, before_total, True)
+                    order_breakpoint_quantities.append(quantity)
+                    order_breakpoint_prices.append(order.calculated_price)
+                else:
+                    quantity = quantity_operated - quantity
+                    self.recalculate_prices(trade_good, operation, before_total, True)
+                    order_breakpoint_quantities.append(quantity)
+                    order_breakpoint_prices.append(order.calculated_price)
 
                 return order_breakpoint_quantities, order_breakpoint_prices, order
 
