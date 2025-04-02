@@ -19,7 +19,7 @@ def parse_command(user_input):
     if operation in {"s", "sell"}:
         return "s", parameters
 
-    if operation in {"da", "dr", "bl", "sl", "w"}:
+    if operation in {"da", "dr", "bl", "sl", "w", "dal", "drl", "wl", "selll", "buyl"}:
         return operation, parameters
 
     if operation in {"q", "quit", "exit"}:
@@ -45,13 +45,13 @@ if __name__ == "__main__":
     while True:
         setup_input = input(
             "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.8-1.2) separated by spaces\nOr press Enter for default values (1 500 500 1)\n> ")
-
-        if setup_input.strip() == "":
+        setup_input2 = setup_input.strip().split()
+        if not setup_input2:
             trade_difficulty, equilibrium, supply, development_score = 1, 500, 500, 1.0
             break
 
         try:
-            trade_difficulty, equilibrium, supply, development_score = setup_input.split()
+            trade_difficulty, equilibrium, supply, development_score = setup_input2
 
             trade_difficulty = clamp(int(trade_difficulty), 1, 10)
             equilibrium = int(equilibrium)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             development_score = clamp(float(development_score), 0.8, 1.2)
             break
         except ValueError:
-            print("Invalid input, enter something like '2 500 300 0.9'")
+            print("Invalid input, enter something like '2 500 300 0.9' or press Enter for default values (1 500 500 1)")
 
 
     simulation_status.trade_difficulty = trade_difficulty
@@ -78,20 +78,21 @@ if __name__ == "__main__":
         if command is None:
             print("Invalid command. Type h for complete command list")
 
-        if command == "b" or command == "bl":
+        if command in ["b", "bl", "buyl"]:
             if len(params) >= 2:
                 if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
                     quantities, prices, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Buy")
+
                     if len(quantities) == 1 and quantities[0] > 0:
                         print(f"You bought {quantities[0]} {tg} from {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
                     elif len(quantities) > 1:
-                        yep = list(zip(quantities, prices))
+                        brackets = list(zip(quantities, prices))
                         cost = 0
-                        for o in yep:
-                            cost += o[0] * o[1]
-                            print(f"You bought {o[0]} {tg} from {order.economy_entity.name} at {o[1]}cr each")
+                        for bracket in brackets:
+                            cost += bracket[0] * bracket[1]
+                            print(f"You bought {bracket[0]} {tg} at {bracket[1]}cr each")
 
-                        print(f"Totaling {sum(quantities)} {tg} for {cost}cr!")
+                        print(f"Totaling {sum(quantities)} {tg} from {order.economy_entity.name} for {cost}cr!")
                     else:
                         print("Need at least 1 unit to buy")
                 else:
@@ -99,12 +100,20 @@ if __name__ == "__main__":
             else:
                 print(f"Usage: b{"l" if command == "bl" else ""} [corporation index] [quantity]")
 
-        if command == "s" or command == "sl":
+        if command in ["s", "sl", "selll"]:
             if len(params) >= 2:
                 if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
                     quantities, prices, order = market.buy_sell(market.sell_orders[tg], params[0] - 1, "Technology Goods", params[1], "Sell")
-                    if len(quantities) == 1:
+                    if len(quantities) == 1 and quantities[0] > 0:
                         print(f"You sold {quantities[0]} {tg} to {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
+                    elif len(quantities) > 1:
+                        brackets = list(zip(quantities, prices))
+                        cost = 0
+                        for bracket in brackets:
+                            cost += bracket[0] * bracket[1]
+                            print(f"You sold {bracket[0]} {tg}  at {bracket[1]}cr each")
+
+                        print(f"Totaling {sum(quantities)} {tg} to {order.economy_entity.name} for {cost}cr!")
                     else:
                         print("Need at least 1 unit to sell")
                 else:
@@ -128,14 +137,14 @@ if __name__ == "__main__":
                   "b [corporation index] [quantity] - to buy\n"
                   "s [corporation index] [quantity] - to sell\n"
                   "l - to show detailed listing. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
-                  "da [corporation index] [quantity] - to add goods to the market\n"
-                  "dr [quantity] - to remove goods from the market\n"
+                  "da [corporation index] [quantity] - debug command, to add goods to a corporation\n"
+                  "dr [quantity] - debug command, to remove goods from the market\n"
                   "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
                   "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
                   "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n"
                   "h or help - show this command list ")
 
-        if command in ["l", "bl", "sl"]:
+        if command[-1] == "l":
             market.detailed_listing(tg)
 
         command_input = input("> ")

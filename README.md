@@ -49,6 +49,8 @@ Market:
 - Add some kind of supply chains where to produce certain goods you need others
 - Item grouping by price, place of origin and quality.
 - Procedurally generate markets based on several factors like culture, political system and population
+- Profit indicator when selling that displays profit margins 
+- Client side only implementation on a website
 
 # Data Structures
 ### SimulationStatus:
