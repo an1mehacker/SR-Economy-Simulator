@@ -215,12 +215,6 @@ def get_quality_price_multiplier(base_price, quality):
 
 
 def bracketed_pricing(equilibrium):
-    # Get breakoff quantity values at 0.75, 0.2, 1.25 and 2
-    # Any time those supply ratios are exceeded whether by buying or selling, the prices immediately recalculate
-    # in respect to the operation meaning We buy, only buy price gets recalculated, sell, only sell prices etc etc
-    # The market will still gradually adjust their prices over a period of 60-70 days.
-    # Returns Deficit_Quantity, Major_Deficit_Quantity, Surplus_Quantity, Major_Surplus_Quantity
-
     return (round(MAJOR_DEFICIT_SUPPLY_RATIO * equilibrium), round(DEFICIT_SUPPLY_RATIO * equilibrium),
             round(SURPLUS_SUPPLY_RATIO * equilibrium), round(MAJOR_SURPLUS_SUPPLY_RATIO * equilibrium))
 
@@ -308,7 +302,8 @@ class Market:
 
     def update_available_supply(self, trade_good):
         status = self.trade_good_status[trade_good]
-        self.trade_good_status[trade_good].available_supply = status.total_supply - bracketed_pricing(status.equilibrium_quantity)[1]
+        new_supply = status.total_supply - bracketed_pricing(status.equilibrium_quantity)[1]
+        self.trade_good_status[trade_good].available_supply = new_supply if new_supply >= 0 else 0
 
         ratio = status.total_supply / status.equilibrium_quantity
         if DEFICIT_SUPPLY_RATIO < ratio < SURPLUS_SUPPLY_RATIO:
@@ -323,14 +318,31 @@ class Market:
 
         self.trade_good_status[trade_good].situation = situation
 
-    def add_goods(self, trade_good, amount):
-        self.buy_orders[trade_good][0].quantity += amount
+    def add_goods(self, trade_good, ee_index, amount):
+        self.buy_orders[trade_good][ee_index].quantity += amount
         before_supply = self.trade_good_status[trade_good].total_supply
         self.trade_good_status[trade_good].total_supply += amount
         self.update_available_supply(trade_good)
         self.recalculate_prices(trade_good, "Buy", before_supply, True)
 
+        return amount
+
+    def remove_goods(self, trade_good, amount):
+        amount_remaining = amount
+        for order in self.buy_orders[trade_good]:
+            if amount_remaining <= 0:
+                break
+            quantity_removed = amount if order.quantity >= amount else order.quantity
+            order.quantity = order.quantity - quantity_removed
+            amount_remaining -= quantity_removed
+
+        self.trade_good_status[trade_good].total_supply -= amount
+        self.update_available_supply(trade_good)
+
+        return amount
+
     def simulate_prices(self, trade_good, order_index, new_supply_ratio):
+        # returns calculated prices at specific supply ratios without affecting anything
         status = self.trade_good_status[trade_good]
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range

@@ -19,15 +19,8 @@ def parse_command(user_input):
     if operation in {"s", "sell"}:
         return "s", parameters
 
-
-    if operation in {"bl"}:
-        return "bl", parameters
-
-    if operation in {"sl"}:
-        return "sl", parameters
-
-    if operation in {"w"}:
-        return "w", parameters
+    if operation in {"da", "dr", "bl", "sl", "w"}:
+        return operation, parameters
 
     if operation in {"q", "quit", "exit"}:
         return "q", []  # e.g., ('w', None) or ('quit', None)
@@ -74,7 +67,7 @@ if __name__ == "__main__":
 
     tg = "Technology Goods"
     market = Market.generate_market("Planet", equilibrium, supply, development_score)
-    market.add_goods(tg, 5139)
+    #market.add_goods(tg, 5139)
 
     filtered_ees = market.detailed_listing(tg)
     command_input = input("w to skip time\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nl to show detailed listing\nh or help for complete command list\n> ")
@@ -119,15 +112,15 @@ if __name__ == "__main__":
             else:
                 print(f"Usage: s{"l" if command == "bl" else ""} [corporation index] [quantity]")
 
-        """
         if command == "da":
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                # debug add
+                added = market.add_goods(tg, params[0] - 1, params[1])
+                print(f"Added {added} {tg} to the market!")
 
         if command == "dr":
-            if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                # debug remove
-        """
+            if len(params) >= 1 and int(params[0] > 0):
+                removed = market.remove_goods(tg, params[0])
+                print(f"Removed {removed} {tg} from the market!")
 
         if command == "h":
             print("w [number of days: optional] to skip time\n"
@@ -135,6 +128,8 @@ if __name__ == "__main__":
                   "b [corporation index] [quantity] - to buy\n"
                   "s [corporation index] [quantity] - to sell\n"
                   "l - to show detailed listing. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
+                  "da [corporation index] [quantity] - to add goods to the market\n"
+                  "dr [quantity] - to remove goods from the market\n"
                   "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
                   "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
                   "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n"
