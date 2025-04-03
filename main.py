@@ -1,8 +1,8 @@
 from market import *
 from math2 import clamp
 
-def parse_command(user_input):
-    processed_input = user_input.strip().lower()
+def parse_command():
+    processed_input = input("> ").strip().lower()
     groups = processed_input.split()
 
     if not groups:
@@ -13,25 +13,32 @@ def parse_command(user_input):
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in {"b", "buy"}:
-        return "b", parameters
-
-    if operation in {"s", "sell"}:
-        return "s", parameters
-
-    if operation in {"da", "dr", "bl", "sl", "w", "dal", "drl", "wl", "selll", "buyl"}:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l"]:
         return operation, parameters
 
-    if operation in {"q", "quit", "exit"}:
+    if operation in ["q", "quit", "exit"]:
         return "q", []  # e.g., ('w', None) or ('quit', None)
 
-    if operation in {"h", "help"}:
-        return "h", parameters
-
-    if operation in {"l", "list"}:
-        return "l", parameters
-
     return None, None  # Invalid input
+
+def display_help():
+    print("\n"
+          "Main Commands\n"
+          "h - home screen, show summary listing for all trade goods on the market\n"
+          "t [trade good index] - to switch to another trade good\n"
+          "help - show this command list\n"
+          "q - quit\n"
+          "w [number of days: optional] - skip time to see changes in price\n\n"
+          "Operation commands\n"
+          "l - show detailed listing of the selected trade good. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
+          "b [corporation index] [quantity] - to buy\n"
+          "s [corporation index] [quantity] - to sell\n"
+          "a [corporation index] [quantity] - debug command, to add goods to a corporation\n"
+          "r [quantity] - debug command, to remove goods from the market\n"
+          "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
+          "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
+          "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n")
+
 
 if __name__ == "__main__":
     simulation_status = SimulationStatus()
@@ -61,92 +68,84 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input, enter something like '2 500 300 0.9' or press Enter for default values (1 500 500 1)")
 
-
     simulation_status.trade_difficulty = trade_difficulty
     calculate_price_ranges(trade_difficulty)
 
     tg = "Technology Goods"
     market = Market.generate_market("Planet", equilibrium, supply, development_score)
-    #market.add_goods(tg, 5139)
-
-    filtered_ees = market.detailed_listing(tg)
-    command_input = input("w to skip time\nq to quit\nb [corporation index] [quantity] to buy\ns [corporation index] [quantity] to sell\nl to show detailed listing\nh or help for complete command list\n> ")
-    command, params = parse_command(command_input)
+    market.summary_listing(tg)
+    print("\nType help for complete list of commands\n")
+    command, params = parse_command()
 
     while command != "q" :
 
         if command is None:
             print("Invalid command. Type h for complete command list")
 
-        if command in ["b", "bl", "buyl"]:
-            if len(params) >= 2:
-                if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                    quantities, prices, order = market.buy_sell(market.buy_orders[tg], params[0] - 1, "Technology Goods", params[1], "Buy")
+        if command in ["b", "bl", "s", "sl"]:
+            operation = "Buy" if command in ["b", "bl"] else "Sell"
+            if len(params) < 2:
+                print(f"Usage: {"b" if operation == "Buy" else "s"}{'l' if command in ["bl", "sl"] else ''} [corporation index] [quantity]")
+                command, params = parse_command()
+                continue
 
-                    if len(quantities) == 1 and quantities[0] > 0:
-                        print(f"You bought {quantities[0]} {tg} from {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
-                    elif len(quantities) > 1:
-                        brackets = list(zip(quantities, prices))
-                        cost = 0
-                        for bracket in brackets:
-                            cost += bracket[0] * bracket[1]
-                            print(f"You bought {bracket[0]} {tg} at {bracket[1]}cr each")
+            corp_index, quantity = int(params[0]), int(params[1])
 
-                        print(f"Totaling {sum(quantities)} {tg} from {order.economy_entity.name} for {cost}cr!")
-                    else:
-                        print("Need at least 1 unit to buy")
-                else:
-                    print("Input a valid corporation index number and a positive quantity number")
-            else:
-                print(f"Usage: b{"l" if command == "bl" else ""} [corporation index] [quantity]")
+            if not (0 < corp_index < len(market.buy_orders[tg]) + 1 and quantity > 0):
+                print(f"Input a valid corporation index number 1 - {len(market.buy_orders[tg])} and a positive quantity number")
+                command, params = parse_command()
+                continue
 
-        if command in ["s", "sl", "selll"]:
-            if len(params) >= 2:
-                if 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
-                    quantities, prices, order = market.buy_sell(market.sell_orders[tg], params[0] - 1, "Technology Goods", params[1], "Sell")
-                    if len(quantities) == 1 and quantities[0] > 0:
-                        print(f"You sold {quantities[0]} {tg} to {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
-                    elif len(quantities) > 1:
-                        brackets = list(zip(quantities, prices))
-                        cost = 0
-                        for bracket in brackets:
-                            cost += bracket[0] * bracket[1]
-                            print(f"You sold {bracket[0]} {tg}  at {bracket[1]}cr each")
+            quantities, prices, order = market.buy_sell(market.buy_orders[tg] if operation == "Buy" else market.sell_orders[tg], corp_index - 1, tg, quantity, operation)
 
-                        print(f"Totaling {sum(quantities)} {tg} to {order.economy_entity.name} for {cost}cr!")
-                    else:
-                        print("Need at least 1 unit to sell")
-                else:
-                    print("Input a valid corporation index number and a positive quantity number")
-            else:
-                print(f"Usage: s{"l" if command == "bl" else ""} [corporation index] [quantity]")
+            if not quantities:
+                print(f"Need at least 1 unit to {operation.lower()}")
+                command, params = parse_command()
+                continue
 
-        if command == "da":
+            if len(quantities) == 1:
+                print(f"You {"bought" if operation == "Buy" else "sold"} {quantities[0]} {tg} {"from" if operation == "Buy" else "to"} {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
+                command, params = parse_command()
+                continue
+
+            brackets = list(zip(quantities, prices))
+            total_cost = sum(q * p for q, p in brackets)
+
+            for q, p in brackets:
+                print(f"You bought {q} {tg} at {p}cr each")
+
+            print(f"Totaling {sum(quantities)} {tg} {"from" if operation == "Buy" else "to"} {order.economy_entity.name} for {total_cost}cr!")
+
+        if command in ["a", "al"]:
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
                 added = market.add_goods(tg, params[0] - 1, params[1])
                 print(f"Added {added} {tg} to the market!")
 
-        if command == "dr":
+        if command in ["r", "rl"]:
             if len(params) >= 1 and int(params[0] > 0):
                 removed = market.remove_goods(tg, params[0])
                 print(f"Removed {removed} {tg} from the market!")
 
-        if command == "h":
-            print("w [number of days: optional] to skip time\n"
-                  "q to quit\n"
-                  "b [corporation index] [quantity] - to buy\n"
-                  "s [corporation index] [quantity] - to sell\n"
-                  "l - to show detailed listing. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
-                  "da [corporation index] [quantity] - debug command, to add goods to a corporation\n"
-                  "dr [quantity] - debug command, to remove goods from the market\n"
-                  "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
-                  "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
-                  "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n"
-                  "h or help - show this command list ")
+        if command in ["ab", "as"]:
+            print("Not implemented.")
 
-        if command[-1] == "l":
+        if command == "h":
+            market.summary_listing(tg)
+
+        if command == "t":
+            goods = list(market.buy_orders.keys())
+            index = params[0] - 1
+            if 0 <= index < len(goods):
+                tg = goods[index]
+                print(f"Switched operating to {goods[index]}")
+            else:
+                print(f"Invalid trade good index, try 1 - {len(goods)}")
+
+        if command == "help":
+            display_help()
+
+        if command is not None and command[-1] == "l":
             market.detailed_listing(tg)
 
-        command_input = input("> ")
-        command, params = parse_command(command_input)
+        command, params = parse_command()
 

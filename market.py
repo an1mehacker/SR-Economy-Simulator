@@ -473,7 +473,6 @@ class Market:
                         breakpoint_total -= quantity
 
                         # we only need to get the calculated prices, no need to recalculate for every reached breakpoint
-                        print(breakpoint_q)
                         buy_price, sell_price = self.simulate_prices(trade_good, order_index, breakpoint_q / self.trade_good_status[trade_good].equilibrium_quantity)
                         price = buy_price if operation == "Buy" else sell_price
 
@@ -640,6 +639,11 @@ class Market:
 
         buy_orders = self.buy_orders[trade_good]
         sell_orders = self.sell_orders[trade_good]
+
+        if len(buy_orders) == 0 and len(sell_orders) == 0:
+            print(f"No orders available for {trade_good}")
+            return
+
         enterprise_amount = len(buy_orders)
         names = [order.economy_entity.name for order in buy_orders]
         quality_distribution = [order.quality for order in buy_orders]
@@ -708,4 +712,37 @@ class Market:
         print(f"Average prices: {buy_weighted_average_price}/{sell_weighted_average_price} "
               f"| Min buy: {min_buy_price} (x{min_buy_quantity}) | Max sell: {max_sell_price} (x{max_sell_quantity})")
 
+    def summary_listing(self, tg):
+        for i, trade_good in enumerate(self.buy_orders.keys()):
+            status = self.trade_good_status[trade_good]
+            buy_orders = self.buy_orders[trade_good]
+            sell_orders = self.sell_orders[trade_good]
 
+            selected = trade_good == tg
+
+            sell_quantity = sum([order.quantity for order in sell_orders])
+
+            # TODO: remove redundant code as this is copy pasted from detailed listing
+            # Filter out invalid (zero-quantity) orders for correct total quantity calculation
+            valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
+            valid_sell_orders = [(order.calculated_price, order.quantity) for order in sell_orders if order.quantity > 0]
+
+            # Calculate total valid quantities
+            buy_total_quantity = sum(q for _, q in valid_buy_orders) if valid_buy_orders else 1
+            sell_total_quantity = sum(q for _, q in valid_sell_orders) if valid_sell_orders else 1
+
+            # Calculate weighted average price - buying
+            buy_weighted_average_price = sum(
+                (q / buy_total_quantity) * p for p, q in valid_buy_orders) if valid_buy_orders else \
+                (sum(order.calculated_price for order in buy_orders) / len(buy_orders) if buy_orders else 0)
+            buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
+
+            # Calculate weighted average price - selling
+            sell_weighted_average_price = sum(
+                (q / sell_total_quantity) * p for p, q in valid_sell_orders) if valid_sell_orders else \
+                (sum(order.calculated_price for order in sell_orders) / len(sell_orders) if sell_orders else 0)
+            sell_weighted_average_price = str(round(sell_weighted_average_price)) + "cr"
+
+            print(f"{str(i + 1) + "." + (" >" if selected else ""):<5} {trade_good + (" <" if selected else ""):<20} - "
+                  f"Buy (x{status.available_supply:<5}) at ~{buy_weighted_average_price:<6}"
+                  f" / Sell (x{sell_quantity:<5}) at ~{sell_weighted_average_price:<6}")
