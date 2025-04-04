@@ -37,10 +37,7 @@ Market:
   * Supply and Demand
 
 # Planned features
-- More user interaction in the form of commands like auto-buying/selling from multiple EEs at once.
 - Add an inventory where the user can track of their purchased items and money.
-- Interact with multiple trade goods not just Technology Goods
-- When Selling, your trade goods need to be of a certain quality.
 - In addition to Enterprise Economy Entity (EE), add many smaller in quantity Individual EE
 - Passage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
@@ -50,6 +47,7 @@ Market:
 - Item grouping by price, place of origin and quality.
 - Procedurally generate markets based on several factors like culture, political system and population
 - Profit indicator when selling that displays profit margins 
+- Price restrictions based on market's conditions
 - Client side only implementation on a website
 
 # Data Structures
@@ -81,5 +79,6 @@ Whenever you buy trade goods, they're converted to items and placed on your inve
   - Name
   - Price Bought
   - Place of origin
+  - Producer (Economy Entity)
   - Legality (This is purely aesthetical)
   - Quantity

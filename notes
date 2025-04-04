@@ -173,10 +173,21 @@ We make an alternative way to incentivize buying from different corporations
 
 - Remove Quality all together
 - Remove all multiplicative modifiers other than the core main like Inflation and Logistic Function
-- Floor and Ceil (input for logi function) for are the only values that should be manipulated to have some variance, by adding or subtracting a random spread and development score (scaled by trade difficulty), ensures the prices are strictly within the price ranges.
-- Remove all Sell Orders. Selling now has a single access point at one price. 
+- Floor and Ceil (input for logi function) are the only values that should be manipulated to have some variance, by adding or subtracting a random spread and development score (scaled by trade difficulty), ensures the prices are strictly within the price ranges.
+- Remove all Sell Orders. Selling now has a single access point at one price or only one OrderListing.
 - Add Bonuses to trade goods of a certain producer. For example technology goods made by "Tech Inc." have a straight +20% bonus to the selling price even if that price exceeds buying. Or some company is not welcome and it gets a -20% or even an exclusion.
+- Bonuses can exceed the established price ranges.
 - You can sell for crazy prices if you happen to have goods of a certain producer that matches an existing bonus in addition to an ongoing deficit on a market.
-- Selling Illegal Trade goods now have a Pitch mechanic. You can sell to the whole market and have a random chance of getting into trouble. Or you can select a particular buyer as an entry point.
+- Selling Illegal Trade goods now has a Pitch mechanic. You can sell to the whole market and have a random chance of getting into trouble. Or you can select a particular buyer as an entry point by paying a commission.
 - The pitched buyer with more reputation will lower your chances of getting into trouble and a shady buyer will increase those chances.
 - Individual EEs remain as producers of goods with a higher variance of prices but lower output of goods.
+- Delayed Self balancing mechanic - When selling, this amount is randomly distributed to the balance quantity of all buy orders (where it will be unavailable). Then each day an extra amount is produced and an equal amount is removed from balance quantity.
+- The same happens when buying except any amount bought is funnelled to the sell order.
+- If a market is flooded by certain goods, it doesn't mean their prices should always fall or vice versa. Certain market conditions make for a minimum floor or ceiling value that locks the price
+
+Goals:
+- Make trading less convoluted as the quality mechanic adds too many restrictions
+- You're incentivized to seek bonuses on certain markets and find the corresponding producers which match the bonus
+- Simplify the market and make it less demanding computationally
+- Resulting price ranges are deterministic instead of having many price modifiers that increase the theoretical max ranges
+- Self balancing mechanic ensures a smooth transition between goods that are bought or sold slowly get available as the other as opposed to being instant.
