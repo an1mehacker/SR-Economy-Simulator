@@ -99,7 +99,7 @@ if __name__ == "__main__":
             quantities, prices, order = market.buy_sell(market.buy_orders[tg] if operation == "Buy" else market.sell_orders[tg], corp_index - 1, tg, quantity, operation)
 
             if not quantities:
-                print(f"Need at least 1 unit to {operation.lower()}")
+                print(f"Cannot {operation.lower()} on an order with 0 quantity")
                 command, params = parse_command()
                 continue
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
             total_cost = sum(q * p for q, p in brackets)
 
             for q, p in brackets:
-                print(f"You bought {q} {tg} at {p}cr each")
+                print(f"You {"bought" if operation == "Buy" else "sold"} {q} {tg} at {p}cr each")
 
             print(f"Totaling {sum(quantities)} {tg} {"from" if operation == "Buy" else "to"} {order.economy_entity.name} for {total_cost}cr!")
 

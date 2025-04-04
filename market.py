@@ -407,12 +407,10 @@ class Market:
 
     def buy_sell(self, orders, order_index, trade_good, quantity, operation):
         try:
-            if operation == "Buy":
-                order = orders[order_index]
-            elif operation == "Sell":
-                order = orders[order_index]
-            else:
-                return -1
+            order = orders[order_index]
+
+            if order.quantity == 0:
+                return None, None, order
 
             # create pairs for quantity and price
             quantity_operated = quantity if order.quantity >= quantity else order.quantity
