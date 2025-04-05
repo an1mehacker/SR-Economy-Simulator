@@ -80,9 +80,9 @@ Information about a demand to buy or sell an amount of goods
 Produces goods and lists them on the market.
 
 A Producer can produce more than one trade good. For example medicine and drugs. Or Common and Rare Minerals.
-    - Name 
-    - Type : Enterprise or Individual
-    - Variation Modifier - Modifier that applies to all of its orders' prices
+  - Name 
+  - Type : Enterprise or Individual
+  - Variation Modifier - Modifier that applies to all of its orders' prices
 
 ### Trade Good Item (Planned)
 Whenever you buy trade goods, they're converted to items and placed on your inventory
