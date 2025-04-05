@@ -132,6 +132,19 @@ if __name__ == "__main__":
         if command == "h":
             market.summary_listing(tg)
 
+        if command == "w":
+            days = SimulationStatus().days_elapsed
+            if params:
+                SimulationStatus().set_to_day(SimulationStatus().days_elapsed + params[0])
+            else:
+                SimulationStatus().skip_day()
+
+            days = SimulationStatus().days_elapsed - days
+
+            for tg in TRADE_GOODS_DATA:
+                market.recalculate_prices(tg, "", -1, False)
+            print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
+
         if command == "t":
             goods = list(market.buy_orders.keys())
             index = params[0] - 1

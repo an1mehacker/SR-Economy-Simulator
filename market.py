@@ -23,7 +23,7 @@ TRADE_GOODS_DATA = {
         "Ammunition":       {"base_price": 15,  "base_range": 0.20},
     }
 
-ENTERPRISE_PRICE_SPREAD = 0.20
+ENTERPRISE_PRICE_SPREAD = 0.25
 INDIVIDUAL_PRICE_SPREAD = 0.4
 
 DEFICIT_SUPPLY_RATIO = 0.75
@@ -36,10 +36,18 @@ MAX_INFLATION_DAYS = 10000
 MAX_INFLATION = 4.0
 
 class SimulationStatus(object):
-    #This is a singleton
     _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SimulationStatus, cls).__new__(cls)
+        return cls._instance
 
     def __init__(self):
+        if self._initialized:
+            return  # Already initialized, skip
+
         self.trade_difficulty = 1
         self.trade_difficulty_multiplier = 1.0
         self.inflation = 1.0
@@ -49,19 +57,17 @@ class SimulationStatus(object):
             for key, value in TRADE_GOODS_DATA.items()
         }
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(SimulationStatus, cls).__new__(cls)
-        return cls._instance
+        SimulationStatus._initialized = True
 
     def skip_day(self):
         self.days_elapsed += 1
-        self.inflation = lerp(1.0, MAX_INFLATION, clamp(self.days_elapsed / MAX_INFLATION_DAYS, 0, MAX_INFLATION_DAYS))
+        new_inflation = clamp(self.days_elapsed / MAX_INFLATION_DAYS, 0, 1.0)
+        self.inflation = lerp(1.0, MAX_INFLATION, new_inflation)
+        print(self.inflation)
 
     def set_to_day(self, day):
         self.days_elapsed = day - 1
         self.skip_day()
-        print(self.inflation)
 
     def calculate_price_ranges(self, trade_difficulty):
         # only need to be done once
@@ -326,7 +332,7 @@ class Market:
         for order in self.buy_orders[trade_good]:
             if amount_remaining <= 0:
                 break
-            quantity_removed = amount if order.quantity >= amount else order.quantity
+            quantity_removed = amount_remaining if order.quantity >= amount_remaining else order.quantity
             order.quantity = order.quantity - quantity_removed
             amount_remaining -= quantity_removed
 
@@ -379,6 +385,9 @@ class Market:
             self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
         else:
             self.trade_good_status[trade_good].calculate_new_daily_fluctuation()
+
+            if not (self.buy_orders[trade_good] and self.sell_order[trade_good]):
+                return
 
             for buy_order in self.buy_orders[trade_good]:
                 buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
@@ -574,7 +583,7 @@ class Market:
         return sell_price * sell_ratio, generic_buy_price
 
     @staticmethod
-    def generate_market(market_name, equilibrium, supply, market_score):
+    def generate_market(market_name, equilibrium, supply, development_score):
         trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 2, 0,
                                         [], [], 500, 480)
 
@@ -586,8 +595,8 @@ class Market:
             temp_trade_statuses[trade_good] = trade_status1
 
 
-        temp = Market(market_name, market_score, temp_trade_statuses)
-        temp.generate_new_orders(equilibrium, supply, market_score)
+        temp = Market(market_name, development_score, temp_trade_statuses)
+        temp.generate_new_orders(equilibrium, supply, development_score)
         return temp
 
     def generate_new_orders(self, equilibrium, supply, market_score):
