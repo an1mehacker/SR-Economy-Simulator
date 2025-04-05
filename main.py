@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.8-1.2) separated by spaces\nOr press Enter for default values (1 500 500 1)\n> ")
+            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 500 500 1)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
             trade_difficulty, equilibrium, supply, development_score = 1, 500, 500, 1.0
@@ -63,13 +63,13 @@ if __name__ == "__main__":
             trade_difficulty = clamp(int(trade_difficulty), 1, 10)
             equilibrium = int(equilibrium)
             supply = int(supply)
-            development_score = clamp(float(development_score), 0.8, 1.2)
+            development_score = clamp(float(development_score), 0.9, 1.1)
             break
         except ValueError:
             print("Invalid input, enter something like '2 500 300 0.9' or press Enter for default values (1 500 500 1)")
 
     simulation_status.trade_difficulty = trade_difficulty
-    calculate_price_ranges(trade_difficulty)
+    SimulationStatus().calculate_price_ranges(trade_difficulty)
 
     tg = "Technology Goods"
     market = Market.generate_market("Planet", equilibrium, supply, development_score)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                 continue
 
             if len(quantities) == 1:
-                print(f"You {"bought" if operation == "Buy" else "sold"} {quantities[0]} {tg} {"from" if operation == "Buy" else "to"} {order.economy_entity.name} for a total of {order.calculated_price * quantities[0]}cr!")
+                print(f"You {"bought" if operation == "Buy" else "sold"} {quantities[0]} {tg} {"from" if operation == "Buy" else "to"} {order.producer.name} for a total of {order.calculated_price * quantities[0]}cr!")
                 command, params = parse_command()
                 continue
 
@@ -114,7 +114,7 @@ if __name__ == "__main__":
             for q, p in brackets:
                 print(f"You {"bought" if operation == "Buy" else "sold"} {q} {tg} at {p}cr each")
 
-            print(f"Totaling {sum(quantities)} {tg} {"from" if operation == "Buy" else "to"} {order.economy_entity.name} for {total_cost}cr!")
+            print(f"Totaling {sum(quantities)} {tg} {"from" if operation == "Buy" else "to"} {order.producer.name} for {total_cost}cr!")
 
         if command in ["a", "al"]:
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
