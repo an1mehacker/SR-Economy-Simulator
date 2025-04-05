@@ -23,6 +23,9 @@ TRADE_GOODS_DATA = {
         "Ammunition":       {"base_price": 15,  "base_range": 0.20},
     }
 
+ENTERPRISE_PRICE_SPREAD = 0.20
+INDIVIDUAL_PRICE_SPREAD = 0.4
+
 DEFICIT_SUPPLY_RATIO = 0.75
 MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
 SURPLUS_SUPPLY_RATIO = 1.25
@@ -351,8 +354,9 @@ class Market:
                                       self.get_sell_price_bonus(item, trade_good))
 
     def recalculate_prices(self, trade_good, operation, before_supply, full_recalculate):
+        status = self.trade_good_status[trade_good]
+
         if full_recalculate:
-            status = self.trade_good_status[trade_good]
             breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_supply)
             breakpoint_quantity = breakpoints[-1] if breakpoints else status.total_supply
 
@@ -360,7 +364,6 @@ class Market:
 
             sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
 
-            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
             # Only recalculate to the same operation we're executing
             if operation == "Buy":
                 for buy_order in self.buy_orders[trade_good]:
@@ -372,15 +375,22 @@ class Market:
 
                 self.sell_order[trade_good].price_point = sell_price
                 self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, minimum_price)
+
+            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
         else:
             self.trade_good_status[trade_good].calculate_new_daily_fluctuation()
-            # for normal recalculations must use the old supply
+
             for buy_order in self.buy_orders[trade_good]:
                 buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
 
             minimum_price = min([buy_order.calculated_price for buy_order in self.buy_orders[trade_good]]) - 1
 
+            sell_price, buy_price = self.calculate_sell_price_point(trade_good, status.total_supply / status.equilibrium_quantity)
+
+            self.sell_order[trade_good].price_point = sell_price
             self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, minimum_price)
+
+            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
 
     def buy_sell(self, orders, order_index, trade_good, quantity, operation):
         try:
@@ -398,7 +408,6 @@ class Market:
 
             if operation == "Buy":
                 self.buy_orders[trade_good][order_index] = order
-                # TODO: with the new Order from EE to Market change, orders stopped being linked to an EE. find a way for this
                 self.sell_order[trade_good].balance_quantity += quantity_operated
 
 
@@ -411,19 +420,8 @@ class Market:
                 self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply + quantity_operated
                 self.update_available_supply(trade_good)
 
-            # TODO: replace with update function
-            ratio = self.trade_good_status[trade_good].total_supply / self.trade_good_status[trade_good].equilibrium_quantity
-            if DEFICIT_SUPPLY_RATIO < ratio < SURPLUS_SUPPLY_RATIO:
-                situation = "Balanced"
-            elif ratio <= DEFICIT_SUPPLY_RATIO:
-                situation = "Deficit"
-            else:
-                situation = "Surplus"
 
-            if ratio <= MAJOR_DEFICIT_SUPPLY_RATIO or ratio >= MAJOR_SURPLUS_SUPPLY_RATIO:
-                situation = "Major " + situation
-
-            self.trade_good_status[trade_good].situation = situation
+            self.update_available_supply(trade_good)
             breakpoints = get_breakpoint_quantities(self.trade_good_status[trade_good].equilibrium_quantity,
                                                     self.trade_good_status[trade_good].total_supply, before_total)
 
@@ -486,14 +484,14 @@ class Market:
 
     def get_buy_price_by_order(self, order_listing, trade_good) -> int:
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().global_trade_good_status[trade_good]["price_range"],
+                                     TRADE_GOODS_DATA[trade_good]["base_price"],
                                      order_listing.price_point,
                                      self.trade_good_status[trade_good].daily_fluctuation,
                                      self.get_buy_price_bonus(order_listing, trade_good))
 
     def get_sell_price_by_order(self, sell_order, trade_good, min_buy_price) -> int:
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().global_trade_good_status[trade_good]["price_range"],
+                                     TRADE_GOODS_DATA[trade_good]["base_price"],
                                      sell_order.price_point,
                                      self.trade_good_status[trade_good].daily_fluctuation,
                                      self.get_sell_price_bonus(None, trade_good),
@@ -568,7 +566,12 @@ class Market:
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
         generic_buy_price = calculate_buy_price_logistic(floor, ceil, ratio)
 
-        return calculate_sell_price_logistic(generic_buy_price, ratio), generic_buy_price
+        # I'm not sure why, but this causes the sell prices to behave exactly like I want, originally used to avoid
+        # intersections of sell prices with minimum buy price when there was a sell order for each buy order.
+        sell_price = calculate_sell_price_logistic(generic_buy_price, ratio)
+        sell_ratio = sell_price / generic_buy_price
+
+        return sell_price * sell_ratio, generic_buy_price
 
     @staticmethod
     def generate_market(market_name, equilibrium, supply, market_score):
@@ -627,17 +630,11 @@ class Market:
 
         sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio) # buy_price is a generic price without variations of producers
 
-        #we adjust the sell price to account for intersection between the lowest buying prices and maximum selling prices
-        #higher supply - greater divide between buy and sell price and vice versa
-        sell_ratio = sell_price / buy_price if buy_price != 0 else 0.9
-        sell_price = sell_price * sell_ratio
         self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
 
-
         # BUY ORDERS
-        variation = 0.2
         for i in range(producers_amount):
-            ee = Producer("Enterprise", names[i], random.uniform(1 - variation, 1 + variation))
+            ee = Producer("Enterprise", names[i], random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
             buy_order = OrderListing(buy_goods[i], ee)
             buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
@@ -645,7 +642,7 @@ class Market:
             self.buy_orders[trade_good].append(buy_order)
 
         # SELL ORDER - Only one trade good access point, only one sell order needed
-        self.sell_order[trade_good] = SellListing(2 * equilibrium - supply)
+        self.sell_order[trade_good] = SellListing(max(2 * equilibrium - supply, 0))
         self.sell_order[trade_good].price_point = sell_price
 
         # get the minimum buying price to then establish a maximum selling price
@@ -653,17 +650,7 @@ class Market:
 
         self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, max_sell_final_price)
 
-        if DEFICIT_SUPPLY_RATIO < ratio < SURPLUS_SUPPLY_RATIO:
-            situation = "Balanced"
-        elif ratio <= DEFICIT_SUPPLY_RATIO:
-            situation = "Deficit"
-        else:
-            situation = "Surplus"
-
-        if ratio <= MAJOR_DEFICIT_SUPPLY_RATIO or ratio >= MAJOR_SURPLUS_SUPPLY_RATIO:
-            situation = "Major " + situation
-
-        self.trade_good_status[trade_good].situation = situation
+        self.update_available_supply(trade_good)
 
     def detailed_listing(self, trade_good, debug=True):
         trade_good_status = self.trade_good_status[trade_good]
@@ -686,20 +673,13 @@ class Market:
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
             print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(trade_good_status.buy_price * self.development_score, 2)} "
-                  f"{round(trade_good_status.sell_price * self.development_score, 2)} | Min sell:{max_sell_final_price} "
+                  f"{round(trade_good_status.sell_price * self.development_score, 2)} | Max sell:{max_sell_final_price} "
                   f"| Supply Ratio: {trade_good_status.total_supply / trade_good_status.equilibrium_quantity}")
 
+        print()
+        print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")
         for i in range(enterprise_amount):
             print(f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr")
-
-        print(f"Sell (x{sell_order.quantity:<5}) at {sell_order.calculated_price:>4}cr")
-
-        print(f"Situation - {trade_good_status.situation}")
-        print(f"Breakoffs - {bracketed_pricing(trade_good_status.equilibrium_quantity)}")
-        print(
-            f"Available for export: {trade_good_status.available_supply} | Internal supply: "
-            f"{bracketed_pricing(trade_good_status.equilibrium_quantity)[1] - abs(min(0, trade_good_status.available_supply))} "
-            f"| Total: {trade_good_status.total_supply}")
 
         # Filter out invalid (zero-quantity) orders for correct total quantity calculation
         valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
@@ -719,11 +699,24 @@ class Market:
             min_buy_quantity = sum(q for p, q in valid_buy_orders if p == min_buy_price)
         else:
             min_buy_price, min_buy_quantity = (
-            min(order.calculated_price for order in buy_orders), 0) if buy_orders else (0, 0)
+                min(order.calculated_price for order in buy_orders), 0) if buy_orders else (0, 0)
 
         min_buy_price = str(min_buy_price) + "cr"
 
         print(f"Average buy prices: {buy_weighted_average_price} | Min buy: {min_buy_price} (x{min_buy_quantity})")
+
+        print()
+        print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
+        print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr")
+
+        print(f"\nSituation - {trade_good_status.situation}")
+        print(f"Breakoffs - {bracketed_pricing(trade_good_status.equilibrium_quantity)}")
+        print(
+            f"Available for export: {trade_good_status.available_supply} | Internal supply: "
+            f"{bracketed_pricing(trade_good_status.equilibrium_quantity)[1] - abs(min(0, trade_good_status.available_supply))} "
+            f"| Total: {trade_good_status.total_supply}")
+
+
 
     def summary_listing(self, tg):
         for i, trade_good in enumerate(self.buy_orders.keys()):
@@ -748,4 +741,4 @@ class Market:
 
             print(f"{str(i + 1) + "." + (" >" if selected else ""):<5} {trade_good + (" <" if selected else ""):<20} - "
                   f"Buy (x{status.available_supply:<5}) at ~{buy_weighted_average_price:<6}"
-                  f" / Sell (x{sell_order.quantity:<5}) at ~{sell_order.calculated_price:<6}")
+                  f" |    Sell (x{sell_order.quantity:<5}) at ~{sell_order.calculated_price:<6}")

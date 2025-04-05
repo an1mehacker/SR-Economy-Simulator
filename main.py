@@ -51,10 +51,10 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 500 500 1)\n> ")
+            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 500 750 1)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, equilibrium, supply, development_score = 1, 500, 500, 1.0
+            trade_difficulty, equilibrium, supply, development_score = 1, 500, 750, 1.0
             break
 
         try:
