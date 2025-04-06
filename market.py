@@ -4,6 +4,7 @@ from idlelib.window import register_callback
 
 from math2 import lerp, clamp, map_range_clamped
 from dataclasses import dataclass
+from typing import List
 
 TRADE_GOODS_DATA = {
         "Organics":         {"base_price": 17,  "base_range": 0.40},
@@ -85,6 +86,7 @@ class SimulationStatus(object):
             # in essence, this is a sliding value from max_difficulty_penalty to 1.0 based on the trade difficulty selected
             self.global_trade_good_status[trade_good]["price_range"] = base_range * self.trade_difficulty_multiplier
 
+
 @dataclass
 class Producer:
     """
@@ -113,9 +115,33 @@ class SellListing:
 @dataclass
 class Item:
     quantity: int
-    price_purchased : int
+    price_purchased : float
     market_of_origin : str
     producer : Producer
+    total_cost : int
+
+@dataclass
+class Actor:
+    # A player, an npc carry items with them and money
+    money: int
+    items: List[Item]
+
+def add_item(actor : Actor, item : Item):
+    for i, inventory_item in enumerate(actor.items):
+        if inventory_item.producer == item.producer and inventory_item.market_of_origin == item.market_of_origin:
+            actor.items[i].quantity += item.quantity
+            return actor
+
+    actor.items.append(item)
+    return actor
+
+def remove_item(actor : Actor, item : Item):
+    for i, inventory_item in enumerate(actor.items):
+        if inventory_item.producer == item.producer and inventory_item.market_of_origin == item.market_of_origin:
+            actor.items.remove(inventory_item)
+            return actor
+
+    return actor
 
 class TradeGoodStatus:
     def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
@@ -285,8 +311,8 @@ class Market:
         self.trade_good_status = trade_good_status
 
         # We can opt to instead of having a collection of EEs, we have a dict of orders for each trade good type like we
-        # have with EE and their dict of orders.
-        # then an order listing has a reference to an EE instead.
+        # have with producer and their dict of orders.
+        # then an order listing has a reference to an producer instead.
         # This way it's easier to handle orders by type cause we don't have to filter EEs based on their orders
         # we can also easily determine which order belongs to an Enterprise or Individual Corporation
 
@@ -401,85 +427,167 @@ class Market:
 
             self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
 
-    def buy_sell(self, orders, order_index, trade_good, quantity, operation):
-        try:
-            order = orders[order_index]
+    def get_bracketed_set(self, trade_good, operation, before_total, before_cost, quantity_operated, order_index=-1, item=None):
+        status = self.trade_good_status[trade_good]
+        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_total)
 
-            if order.quantity == 0:
-                return None, None, order
+        if breakpoints:
+            breakpoint_total = before_total
+            # we get the first breakpoint which represents the first portion of the quantities price listed
+            quantity = abs(before_total - breakpoints[0])
+            order_breakpoint_quantities = [quantity]
+            order_breakpoint_prices = [before_cost]
 
-            # create pairs for quantity and price
-            quantity_operated = quantity if order.quantity >= quantity else order.quantity
-            order.quantity = order.quantity - quantity_operated
+            breakpoint_total -= quantity
 
-            before_total = self.trade_good_status[trade_good].total_supply
-            before_cost = order.calculated_price
+            print(f"Breakpoint reached - recalculating {operation} orders at {breakpoints[-1]} supply!")
+            if len(breakpoints) > 1:
+                for i, breakpoint_q in enumerate(breakpoints):
+                    if i == len(breakpoints) - 1:
+                        quantity = breakpoints[-1] - status.total_supply
+                        continue
 
-            if operation == "Buy":
-                self.buy_orders[trade_good][order_index] = order
-                self.sell_order[trade_good].balance_quantity += quantity_operated
+                    quantity = breakpoint_total - breakpoints[i + 1]
+                    breakpoint_total -= quantity
 
+                    # we only need to get the calculated prices, no need to recalculate for every reached breakpoint
 
-                self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
-                self.update_available_supply(trade_good)
+                    price = self.simulate_buy_price(trade_good, breakpoint_q / status.equilibrium_quantity, order_index) \
+                        if operation == "Buy" else self.simulate_sell_price(trade_good, breakpoint_q / status.equilibrium_quantity, item)
+
+                    if price == order_breakpoint_prices[i - 1]:
+                        # join quantities of the same prices
+                        order_breakpoint_quantities[i - 1] += quantity
+                    else:
+                        order_breakpoint_prices.append(price)
+                        order_breakpoint_quantities.append(quantity)
+
+                self.recalculate_prices(trade_good, operation, before_total, True)
+                order = self.buy_orders[trade_good][order_index] if operation == "Buy" else self.sell_order[trade_good]
+                order_breakpoint_quantities.append(quantity)
+                order_breakpoint_prices.append(order.calculated_price)
             else:
-                self.sell_order[trade_good] = order
-                self.buy_orders[trade_good][order_index].balance_quantity += quantity_operated
+                quantity = quantity_operated - quantity
+                self.recalculate_prices(trade_good, operation, before_total, True)
+                order = self.buy_orders[trade_good][order_index] if operation == "Buy" else self.sell_order[trade_good]
+                order_breakpoint_quantities.append(quantity)
+                order_breakpoint_prices.append(order.calculated_price)
 
-                self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply + quantity_operated
-                self.update_available_supply(trade_good)
+            total_quantity = sum(order_breakpoint_quantities)
+            total_price = 0
+            for i, quantity in enumerate(order_breakpoint_quantities):
+                total_price += quantity * order_breakpoint_prices[i]
+
+            return order_breakpoint_quantities, order_breakpoint_prices, total_price / total_quantity, total_price
+        return [],[],-1,-1
+
+    def buy(self, trade_good, order_index, quantity):
+        order = self.buy_orders[trade_good][order_index]
+
+        if order.quantity == 0:
+            return [], [], Item(-1, -1, '', None, -1)
+
+        # create pairs for quantity and price
+        quantity_operated = quantity if order.quantity >= quantity else order.quantity
+        order.quantity = order.quantity - quantity_operated
+
+        before_total = self.trade_good_status[trade_good].total_supply
+        before_cost = order.calculated_price
+
+        self.buy_orders[trade_good][order_index] = order
+        self.sell_order[trade_good].balance_quantity += quantity_operated
+
+        self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
+        self.update_available_supply(trade_good)
+
+        order_breakpoint_quantities, order_breakpoint_prices, average_price, total_price = self.get_bracketed_set(
+            trade_good, "Buy", before_total, before_cost, quantity_operated, order_index)
+
+        if not order_breakpoint_quantities:
+            order_breakpoint_quantities = [quantity_operated]
+            order_breakpoint_prices = [before_cost]
+            average_price = before_cost
+            total_price = quantity_operated * average_price
+
+        return order_breakpoint_quantities, order_breakpoint_prices, Item(sum(order_breakpoint_quantities), average_price , self.name, order.producer, total_price)
+
+    def distribute_goods(self, trade_good, old_supply, new_supply):
+        # distributes goods to producers with lower order amounts if we're in a surplus situation
+        surplus_point = bracketed_pricing(self.trade_good_status[trade_good].equilibrium_quantity)[2]
+        old_supply = old_supply if old_supply > surplus_point else surplus_point - old_supply
+
+        if new_supply <= surplus_point:
+            return  # Nothing to distribute
+
+        orders = self.buy_orders[trade_good]
+        quantity_to_distribute = new_supply - old_supply
+
+        if not orders or quantity_to_distribute <= 0:
+            return
+
+        weights = []
+        total_weight = 0
+
+        for order in orders:
+            # Bias factor: gives a bit more weight to smaller-than-average quantities
+            bias = max(1 / (math.sqrt(order.quantity + 1)), 1 / (len(orders) * 2))
+            randomness = random.uniform(0.8, 1.2)
+            weight = bias * randomness
+            weights.append(weight)
+            total_weight += weight
+
+        # Distribute based on the weights
+        distributed_total = 0
+        for i, order in enumerate(orders):
+            share = round((weights[i] / total_weight) * quantity_to_distribute)
+
+            # Ensure we don't over-distribute
+            share = min(share, quantity_to_distribute - distributed_total)
+            order.balance_quantity += share
+            distributed_total += share
+
+            if distributed_total >= quantity_to_distribute:
+                break
 
 
-            self.update_available_supply(trade_good)
-            breakpoints = get_breakpoint_quantities(self.trade_good_status[trade_good].equilibrium_quantity,
-                                                    self.trade_good_status[trade_good].total_supply, before_total)
+    def sell(self, trade_good, item, quantity):
+        order = self.sell_order[trade_good]
 
-            if breakpoints:
-                breakpoint_total = before_total
-                # we get the first breakpoint which represents the first portion of the quantities price listed
-                quantity = abs(before_total - breakpoints[0])
-                order_breakpoint_quantities = [quantity]
-                order_breakpoint_prices = [before_cost]
+        if item.quantity == 0:
+            return [], [], item
 
-                breakpoint_total -= quantity
+        status = self.trade_good_status[trade_good]
+        # create pairs for quantity and price
+        quantity_operated = quantity if item.quantity >= quantity else item.quantity
+        quantity_operated = quantity_operated if order.quantity >= quantity_operated else order.quantity
+        item.quantity -= quantity_operated
+        self.sell_order[trade_good].quantity -= quantity_operated
 
-                print(breakpoints)
-                print(f"Breakpoint reached - recalculating {operation} orders at {breakpoints[-1]} supply!")
-                if len(breakpoints) > 1:
-                    for i, breakpoint_q in enumerate(breakpoints):
-                        if i == len(breakpoints) - 1:
-                            quantity = breakpoints[-1] - self.trade_good_status[trade_good].total_supply
-                            continue
+        before_total = self.trade_good_status[trade_good].total_supply
+        before_cost = order.calculated_price
 
-                        quantity = breakpoint_total - breakpoints[i + 1]
-                        breakpoint_total -= quantity
+        # TODO: Distribute newly sold quantities to producers if situation >= Surplus
+        #self.buy_orders[trade_good][order_index].balance_quantity += quantity_operated
 
-                        # we only need to get the calculated prices, no need to recalculate for every reached breakpoint
-                        buy_price, sell_price = self.simulate_prices(trade_good, order_index, breakpoint_q / self.trade_good_status[trade_good].equilibrium_quantity)
-                        price = buy_price if operation == "Buy" else sell_price
+        self.trade_good_status[trade_good].total_supply = status.total_supply + quantity_operated
 
-                        if price == order_breakpoint_prices[i - 1]:
-                            # join quantities of the same prices
-                            order_breakpoint_quantities[i - 1] += quantity
-                        else:
-                            order_breakpoint_prices.append(price)
-                            order_breakpoint_quantities.append(quantity)
+        self.distribute_goods(trade_good,before_total, self.trade_good_status[trade_good].total_supply)
+        self.update_available_supply(trade_good)
 
-                    self.recalculate_prices(trade_good, operation, before_total, True)
-                    order_breakpoint_quantities.append(quantity)
-                    order_breakpoint_prices.append(order.calculated_price)
-                else:
-                    quantity = quantity_operated - quantity
-                    self.recalculate_prices(trade_good, operation, before_total, True)
-                    order_breakpoint_quantities.append(quantity)
-                    order_breakpoint_prices.append(order.calculated_price)
+        order_breakpoint_quantities, order_breakpoint_prices, average_price, total_price = self.get_bracketed_set(
+            trade_good, "Sell", before_total, before_cost, quantity_operated, -1, item)
 
-                return order_breakpoint_quantities, order_breakpoint_prices, order
+        if not order_breakpoint_quantities:
+            order_breakpoint_quantities = [quantity_operated]
+            order_breakpoint_prices = [before_cost]
+            average_price = before_cost
+            total_price = item.quantity * average_price
 
-            return [quantity_operated], [before_cost], order
-        except IndexError:
-            print("Please input a valid corporation index")
-            return -1
+        item.total_cost = total_price
+        if item.quantity == 0:
+            return order_breakpoint_quantities, order_breakpoint_prices, Item(quantity_operated, average_price, self.name, item.producer, -1)
+
+        return order_breakpoint_quantities, order_breakpoint_prices, item
 
     def get_buy_price_bonus(self, order_listing, trade_good) -> float:
         bonuses = self.trade_good_status[trade_good].buy_modifiers
@@ -601,7 +709,7 @@ class Market:
 
     def generate_new_orders(self, equilibrium, supply, market_score):
 
-        # TODO: create EEs for all of the remaining trade goods, figure out how to get names of corporations too.
+        # TODO: Make Producers for all of the remaining trade goods, figure out how to get names of corporations too.
         # for trade_good in SimulationStatus().global_trade_good_status:
 
         trade_good = "Technology Goods"
@@ -614,7 +722,7 @@ class Market:
         # allocate supply for an amount of EEs
         # determine spread of prices across all EEs. 0.95x - 1.05x for base prices over 20, under 20 0.8x - 1.2x
         # this spread isn't related to price distributions on main.py as that's how much prices vary over multiple economies
-        # create order listings for each EE by using the price spread
+        # create order listings for each Producer by using the price spread
         # the price point depends on the quality where the random value tends to the range interval.
 
 
@@ -643,8 +751,8 @@ class Market:
 
         # BUY ORDERS
         for i in range(producers_amount):
-            ee = Producer("Enterprise", names[i], random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
-            buy_order = OrderListing(buy_goods[i], ee)
+            producer = Producer("Enterprise", names[i], random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
+            buy_order = OrderListing(buy_goods[i], producer)
             buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
 
@@ -661,8 +769,8 @@ class Market:
 
         self.update_available_supply(trade_good)
 
-    def detailed_listing(self, trade_good, debug=True):
-        trade_good_status = self.trade_good_status[trade_good]
+    def detailed_listing(self, trade_good, items, debug=True):
+        status = self.trade_good_status[trade_good]
 
         buy_orders = self.buy_orders[trade_good]
         sell_order = self.sell_order[trade_good]
@@ -681,14 +789,16 @@ class Market:
 
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
-            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(trade_good_status.buy_price * self.development_score, 2)} "
-                  f"{round(trade_good_status.sell_price * self.development_score, 2)} | Max sell:{max_sell_final_price} "
-                  f"| Supply Ratio: {trade_good_status.total_supply / trade_good_status.equilibrium_quantity}")
+            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(status.buy_price * self.development_score, 2)} "
+                  f"{round(status.sell_price * self.development_score, 2)} | Max sell:{max_sell_final_price} "
+                  f"| Supply Ratio: {status.total_supply / status.equilibrium_quantity} "
+                  f"| Today's Fluctuation: {round(status.daily_fluctuation, 2)}")
 
         print()
         print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")
         for i in range(enterprise_amount):
-            print(f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr")
+            print(f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr "
+                  f"| Balance quantity: (x{buy_orders[i].balance_quantity})")
 
         # Filter out invalid (zero-quantity) orders for correct total quantity calculation
         valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
@@ -718,12 +828,19 @@ class Market:
         print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
         print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr")
 
-        print(f"\nSituation - {trade_good_status.situation}")
-        print(f"Breakoffs - {bracketed_pricing(trade_good_status.equilibrium_quantity)}")
+        # TODO List selling bonuses here and user items
+
+        if len(items) == 0:
+            print(f"No {trade_good} to sell")
+        for i, item in enumerate(items):
+            print(f"{i + 1}. - x{item.quantity:<5} {trade_good} at {item.price_purchased}cr")
+
+        print(f"\nSituation - {status.situation}")
+        print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")
         print(
-            f"Available for export: {trade_good_status.available_supply} | Internal supply: "
-            f"{bracketed_pricing(trade_good_status.equilibrium_quantity)[1] - abs(min(0, trade_good_status.available_supply))} "
-            f"| Total: {trade_good_status.total_supply}")
+            f"Available for export: {status.available_supply} | Internal supply: "
+            f"{bracketed_pricing(status.equilibrium_quantity)[1] - abs(min(0, status.available_supply))} "
+            f"| Total: {status.total_supply}")
 
 
 
@@ -735,7 +852,6 @@ class Market:
 
             selected = trade_good == tg
 
-            # TODO: remove redundant code as this is copy pasted from detailed listing
             # Filter out invalid (zero-quantity) orders for correct total quantity calculation
             valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
 
