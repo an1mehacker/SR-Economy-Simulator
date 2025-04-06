@@ -3,20 +3,16 @@ My attempt at creating a dynamic economy inspired by the game Space Rangers HD: 
 To use this project, run main.py and enter a desired amount for the market parameters
 
 # Features
-- One Market class is generated to display a trade good.
-- Type commands to buy or sell goods and see the changes.
-- Multiple corporations will spawn each different price variations
-- A supply of trade goods will be distributed among the corporations
-- An equilibrium quantity will determine the status of the trade good: Deficit, Balanced or Surplus
-- The prices will reflect the status following supply and demand law 
-- When supply is low, selling prices approach buying prices to incentivize selling
-- Market allocates 75% of the equilibrium amount to its own internal supply that the player cannot interact with, to avoid a player induced deficit
-- Self-balancing market - buying will add equal demand to selling and vice versa (Being reworked)
-- Bracketed Pricing - Prices recalculate after reaching critical breakpoints
+- Buy from multiple Producers at different prices and sell them with your bought items
+- Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
+- Selling prices approach buying prices to incentivize selling when supply is low
+- Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
+- Passage of Time - Prices fluctuate over time and they grow to reflect a rising inflation
+- Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
+- Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
 
 Here's an example use
 ![](images/pic1.png?)
-
 
 Most important file is economy_entity.py
 
@@ -37,18 +33,16 @@ Market:
   * Supply and Demand
 
 # Planned features
-- Add an inventory where the user can track of their purchased items and money.
+- Generate all trade goods
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers
-- Passage of time and price adjustment over time to reflect new supply
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
-- Add random events where prices change
+- Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Add some kind of supply chains where to produce certain goods you need others
-- Item grouping by price, place of origin and quality.
+- Item grouping by producer.
 - Procedurally generate markets based on several factors like culture, political system and population
 - Profit indicator when selling that displays profit margins 
 - Price restrictions based on market's conditions
-- Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Client side only implementation on a website
 
 # Data Structures
@@ -84,8 +78,8 @@ A Producer can produce more than one trade good. For example medicine and drugs.
   - Type : Enterprise or Individual
   - Variation Modifier - Modifier that applies to all of its orders' prices
 
-### Trade Good Item (Planned)
-Whenever you buy trade goods, they're converted to items and placed on your inventory
+### Trade Good Item
+Whenever you buy trade goods, they're converted to items and placed on your inventory where you can then sell them
   - Name
   - Price Bought
   - Place of origin

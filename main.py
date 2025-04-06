@@ -84,7 +84,6 @@ if __name__ == "__main__":
             print("Invalid command. Type h for complete command list")
 
         if command in ["b", "bl"]:
-            operation = "Buy"
             if len(params) < 2:
                 print(f"Usage: b{'l' if command in ["bl", "sl"] else ''} [producer index] [quantity]")
                 command, params = parse_command()
@@ -100,9 +99,8 @@ if __name__ == "__main__":
             # if buy, add item to actor and merge quantities if already exists
             quantities, prices, item = market.buy(tg, producer_index, quantity)
 
-
             if not quantities:
-                print(f"Cannot {operation.lower()} on an order with 0 quantity")
+                print("Cannot buy from a producer with 0 quantity")
                 command, params = parse_command()
                 continue
 

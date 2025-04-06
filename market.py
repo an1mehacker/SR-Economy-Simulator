@@ -833,7 +833,7 @@ class Market:
         if len(items) == 0:
             print(f"No {trade_good} to sell")
         for i, item in enumerate(items):
-            print(f"{i + 1}. - x{item.quantity:<5} {trade_good} at {item.price_purchased}cr")
+            print(f"{i + 1}. - x{item.quantity:<5} {trade_good} at {item.price_purchased}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")
         print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")
