@@ -4,7 +4,7 @@ from idlelib.window import register_callback
 
 from math2 import lerp, clamp, map_range_clamped
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 TRADE_GOODS_DATA = {
         "Organics":         {"base_price": 17,  "base_range": 0.40},
@@ -112,36 +112,88 @@ class SellListing:
     price_point: float = 1.0
     calculated_price : int = -1
 
-@dataclass
 class Item:
-    quantity: int
-    price_purchased : float
-    market_of_origin : str
-    producer : Producer
-    total_cost : int
+    def __init__(self, total_quantity: int, breakdown_quantity_prices: List[Tuple[int, int]], market_of_origin: str, producer):
+        self.total_quantity = total_quantity
+        self.breakdown_quantity_prices = breakdown_quantity_prices  # List of (quantity, price)
+        self.market_of_origin = market_of_origin
+        self.producer = producer
+        self.total_cost = self.calculate_total_cost()
 
-@dataclass
+    def calculate_total_quantity(self) -> int:
+        return sum(q for q, _ in self.breakdown_quantity_prices)
+
+    def calculate_total_cost(self) -> int:
+        return sum(q * p for q, p in self.breakdown_quantity_prices)
+
+    def is_equal(self, other: 'Item') -> bool:
+        return self.market_of_origin == other.market_of_origin and self.producer.name == other.producer.name
+
+    def add(self, other: 'Item'):
+        if not self.is_equal(other):
+            raise ValueError("Cannot add items with different market origins or producers.")
+
+        price_map = {}
+        # Merge existing breakdown
+        for q, p in self.breakdown_quantity_prices:
+            price_map[p] = price_map.get(p, 0) + q
+        # Add from other
+        for q, p in other.breakdown_quantity_prices:
+            price_map[p] = price_map.get(p, 0) + q
+
+        self.breakdown_quantity_prices = [(q, p) for p, q in price_map.items()]
+        self.total_quantity = self.calculate_total_quantity()
+        self.total_cost = self.calculate_total_cost()
+
+    def remove(self, other: 'Item'):
+        if not self.is_equal(other):
+            raise ValueError("Cannot remove items with different market origins or producers.")
+
+        quantity_to_remove = other.calculate_total_quantity()
+
+        new_breakdown = []
+        for q, p in self.breakdown_quantity_prices:
+            if quantity_to_remove <= 0:
+                new_breakdown.append((q, p))
+                continue
+
+            if q <= quantity_to_remove:
+                quantity_to_remove -= q
+                # Skip appending this one — it's fully consumed
+            else:
+                new_breakdown.append((q - quantity_to_remove, p))
+                quantity_to_remove = 0
+
+        self.breakdown_quantity_prices = new_breakdown
+        self.total_quantity = self.calculate_total_quantity()
+        self.total_cost = self.calculate_total_cost()
+
 class Actor:
-    # A player, an npc carry items with them and money
-    money: int
-    items: List[Item]
+    def __init__(self, money: int):
+        self.money = money
+        self.items: List[Item] = []
 
-def add_item(actor : Actor, item : Item):
-    for i, inventory_item in enumerate(actor.items):
-        if inventory_item.producer == item.producer and inventory_item.market_of_origin == item.market_of_origin:
-            actor.items[i].quantity += item.quantity
-            return actor
+    def find_item_index(self, item: Item) -> int:
+        for i, inv_item in enumerate(self.items):
+            if inv_item.is_equal(item):
+                return i
+        return -1
 
-    actor.items.append(item)
-    return actor
+    def add_item(self, item: Item):
+        index = self.find_item_index(item)
+        if index != -1:
+            self.items[index].add(item)
+        else:
+            self.items.append(item)
+        return self
 
-def remove_item(actor : Actor, item : Item):
-    for i, inventory_item in enumerate(actor.items):
-        if inventory_item.producer == item.producer and inventory_item.market_of_origin == item.market_of_origin:
-            actor.items.remove(inventory_item)
-            return actor
-
-    return actor
+    def remove_item(self, item: Item):
+        index = self.find_item_index(item)
+        if index != -1:
+            self.items[index].remove(item)
+            if self.items[index].total_quantity == 0:
+                del self.items[index]
+        return self
 
 class TradeGoodStatus:
     def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
@@ -473,19 +525,18 @@ class Market:
                 order_breakpoint_quantities.append(quantity)
                 order_breakpoint_prices.append(order.calculated_price)
 
-            total_quantity = sum(order_breakpoint_quantities)
-            total_price = 0
+            total_cost = 0
             for i, quantity in enumerate(order_breakpoint_quantities):
-                total_price += quantity * order_breakpoint_prices[i]
+                total_cost += quantity * order_breakpoint_prices[i]
 
-            return order_breakpoint_quantities, order_breakpoint_prices, total_price / total_quantity, total_price
-        return [],[],-1,-1
+            return order_breakpoint_quantities, order_breakpoint_prices, total_cost
+        return [],[],-1
 
-    def buy(self, trade_good, order_index, quantity):
+    def buy(self, trade_good, order_index, quantity) -> Item:
         order = self.buy_orders[trade_good][order_index]
 
         if order.quantity == 0:
-            return [], [], Item(-1, -1, '', None, -1)
+            return Item(-1, [], '', None, -1)
 
         # create pairs for quantity and price
         quantity_operated = quantity if order.quantity >= quantity else order.quantity
@@ -500,16 +551,15 @@ class Market:
         self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
         self.update_available_supply(trade_good)
 
-        order_breakpoint_quantities, order_breakpoint_prices, average_price, total_price = self.get_bracketed_set(
+        order_breakpoint_quantities, order_breakpoint_prices, total_price = self.get_bracketed_set(
             trade_good, "Buy", before_total, before_cost, quantity_operated, order_index)
 
         if not order_breakpoint_quantities:
             order_breakpoint_quantities = [quantity_operated]
             order_breakpoint_prices = [before_cost]
-            average_price = before_cost
-            total_price = quantity_operated * average_price
 
-        return order_breakpoint_quantities, order_breakpoint_prices, Item(sum(order_breakpoint_quantities), average_price , self.name, order.producer, total_price)
+        # for an accurate calculation of prices, items retain complete breakdown of quantities and prices
+        return Item(sum(order_breakpoint_quantities), list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, order.producer)
 
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation
@@ -550,44 +600,34 @@ class Market:
                 break
 
 
-    def sell(self, trade_good, item, quantity):
+    def sell(self, trade_good, item, quantity) -> Item:
         order = self.sell_order[trade_good]
 
-        if item.quantity == 0:
-            return [], [], item
+        if item.total_quantity == 0:
+            return item
 
         status = self.trade_good_status[trade_good]
         # create pairs for quantity and price
-        quantity_operated = quantity if item.quantity >= quantity else item.quantity
+        quantity_operated = quantity if item.total_quantity >= quantity else item.total_quantity
         quantity_operated = quantity_operated if order.quantity >= quantity_operated else order.quantity
-        item.quantity -= quantity_operated
         self.sell_order[trade_good].quantity -= quantity_operated
 
         before_total = self.trade_good_status[trade_good].total_supply
         before_cost = order.calculated_price
-
-        # TODO: Distribute newly sold quantities to producers if situation >= Surplus
-        #self.buy_orders[trade_good][order_index].balance_quantity += quantity_operated
 
         self.trade_good_status[trade_good].total_supply = status.total_supply + quantity_operated
 
         self.distribute_goods(trade_good,before_total, self.trade_good_status[trade_good].total_supply)
         self.update_available_supply(trade_good)
 
-        order_breakpoint_quantities, order_breakpoint_prices, average_price, total_price = self.get_bracketed_set(
+        order_breakpoint_quantities, order_breakpoint_prices, total_price = self.get_bracketed_set(
             trade_good, "Sell", before_total, before_cost, quantity_operated, -1, item)
 
         if not order_breakpoint_quantities:
             order_breakpoint_quantities = [quantity_operated]
             order_breakpoint_prices = [before_cost]
-            average_price = before_cost
-            total_price = item.quantity * average_price
 
-        item.total_cost = total_price
-        if item.quantity == 0:
-            return order_breakpoint_quantities, order_breakpoint_prices, Item(quantity_operated, average_price, self.name, item.producer, -1)
-
-        return order_breakpoint_quantities, order_breakpoint_prices, item
+        return Item(quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, item.producer)
 
     def get_buy_price_bonus(self, order_listing, trade_good) -> float:
         bonuses = self.trade_good_status[trade_good].buy_modifiers
@@ -833,7 +873,7 @@ class Market:
         if len(items) == 0:
             print(f"No {trade_good} to sell")
         for i, item in enumerate(items):
-            print(f"{i + 1}. - x{item.quantity:<5} {trade_good} at {item.price_purchased}cr manufactured by {item.producer.name}")
+            print(f"{i + 1}. - x{item.total_quantity:<5} {trade_good} at {round(item.total_cost / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")
         print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")

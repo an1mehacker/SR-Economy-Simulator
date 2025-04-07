@@ -16,7 +16,7 @@ Here's an example use
 
 Most important file is economy_entity.py
 
-Most important functions are: Market.generate_new_ees(), get_final_price_by_order, calculate_price_logistic, OrderListing.get_price
+Most important functions are: Market.generate_new_ees(), Market.buy(), Market.sell(), calculate_price_point(), 
 
 # Price factors
 
@@ -26,8 +26,8 @@ Global:
   * Trade Good Base Price and Range
 
 Market:
-  * Market Score (highly developed planets have more expensive goods)
-  * Quality of Goods (from D to A)
+  * Development Score (highly developed planets have more expensive goods)
+  * Producer Bonuses if applicable
   * Daily Fluctuation
   * Market Events like deficits or sales.
   * Supply and Demand
@@ -51,14 +51,14 @@ Global information about the simulation that applies to all markets
 
 ### Market
 A Market is a collection of OrderListings that are part of a single Planet or Space Station.
-  - Collection of Order Listing grouped by trade good type and a Sell Listing
+  - Collection of Order Listing and a single Sell Listing grouped by trade good type
   - Collection of TradeGoodStatus grouped by trade good type
   - Development Score that affects all prices on the market
 
 ### TradeGoodStatus
 Keeps track of vital information about a trade good of a market
   - Daily Fluctuation
-  - Bonuses and Penalties that get applied for a Producer
+  - Producer Modifiers
   - Whether the trade good is essential and legal
   - Equilibrium and Supply quantity
   - Current Market Situation - Balanced, Deficit, Surplus

@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     tg = "Technology Goods"
     market = Market.generate_market("Planet", equilibrium, supply, development_score)
-    user = Actor(10000, [])
+    user = Actor(10000)
     market.summary_listing(tg)
     print("\nType help for complete list of commands\n")
     command, params = parse_command()
@@ -97,28 +97,25 @@ if __name__ == "__main__":
                 continue
 
             # if buy, add item to actor and merge quantities if already exists
-            quantities, prices, item = market.buy(tg, producer_index, quantity)
+            item = market.buy(tg, producer_index, quantity)
 
-            if not quantities:
-                print("Cannot buy from a producer with 0 quantity")
+            if item.total_quantity == -1:
+                print("Can only buy from producers with a positive amount")
                 command, params = parse_command()
                 continue
 
-            user = add_item(user, item)
-            if len(quantities) == 1:
-                print(f"You bought {quantities[0]} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
+            user.add_item(item)
+            if len(item.breakdown_quantity_prices) == 1:
+                print(f"You bought {item.breakdown_quantity_prices[0][0]} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
                 continue
 
-
-
-            brackets = list(zip(quantities, prices))
-            total_cost = sum(q * p for q, p in brackets)
+            brackets = item.breakdown_quantity_prices
 
             for q, p in brackets:
                 print(f"You bought {q} {tg} at {p}cr each")
 
-            print(f"Totaling {sum(quantities)} {tg} from {item.producer.name} for {total_cost}cr!")
+            print(f"Totaling {item.total_quantity} {tg} from {item.producer.name} for {item.total_cost}cr!")
 
 
         if command in ["s", "sl"]:
@@ -137,29 +134,23 @@ if __name__ == "__main__":
 
             item = user.items[item_index]
             # if sell, use existing item on actor to sell, if quantity 0, delete item
-            quantities, prices, item = market.sell(tg, item, quantity)
+            item = market.sell(tg, item, quantity)
 
-            if not quantities:
-                print(f"Cannot {operation.lower()} on an item with 0 quantity")
+            if quantity < 1:
+                print(f"Can only sell a positive amount")
                 command, params = parse_command()
                 continue
 
-            if item.quantity == -1:
-                user = remove_item(user, item)
-            else:
-                user.items[item_index] = item
-            if len(quantities) == 1:
-                print(f"You sold {quantities[0]} {tg} for a total of {quantities[0] * prices[0]}cr!")
+            user.remove_item(item)
+            if len(item.breakdown_quantity_prices) == 1:
+                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
                 continue
 
-            brackets = list(zip(quantities, prices))
-            total_cost = sum(q * p for q, p in brackets)
-
-            for q, p in brackets:
+            for q, p in item.breakdown_quantity_prices:
                 print(f"You sold {q} {tg} at {p}cr each")
 
-            print(f"Totaling {sum(quantities)} {tg} for {total_cost}cr!")
+            print(f"Totaling {item.total_quantity} {tg} for {item.total_cost}cr!")
 
         if command in ["a", "al"]:
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
