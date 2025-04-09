@@ -7,7 +7,7 @@ To use this project, run main.py and enter a desired amount for the market param
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
-- Passage of Time - Prices fluctuate over time and they grow to reflect a rising inflation
+- Passage of Time - Prices rise and fall over time towards a new price when supply is affected, fluctuate over time and grow to reflect a rising inflation
 - Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
 - Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
 
@@ -33,16 +33,17 @@ Market:
   * Supply and Demand
 
 # Planned features
+- Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
 - Generate all trade goods
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Add some kind of supply chains where to produce certain goods you need others
-- Item grouping by producer.
 - Procedurally generate markets based on several factors like culture, political system and population
 - Profit indicator when selling that displays profit margins 
 - Price restrictions based on market's conditions
+- Unit testing to make sure all these complex calculations and interactions are actually behaving as intended
 - Client side only implementation on a website
 
 # Data Structures
@@ -86,3 +87,8 @@ Whenever you buy trade goods, they're converted to items and placed on your inve
   - Producer
   - Legality (This is purely aesthetical for now)
   - Quantity
+
+### Actor
+Someone who interacts with the market
+  - Money
+  - List of Items

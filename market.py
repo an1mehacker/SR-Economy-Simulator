@@ -113,18 +113,18 @@ class SellListing:
     calculated_price : int = -1
 
 class Item:
-    def __init__(self, total_quantity: int, breakdown_quantity_prices: List[Tuple[int, int]], market_of_origin: str, producer):
+    def __init__(self, total_quantity: int, breakdown_prices: List[Tuple[int, int]], market_of_origin: str, producer):
         self.total_quantity = total_quantity
-        self.breakdown_quantity_prices = breakdown_quantity_prices  # List of (quantity, price)
+        self.breakdown_prices = breakdown_prices  # List of (quantity, price)
         self.market_of_origin = market_of_origin
         self.producer = producer
         self.total_cost = self.calculate_total_cost()
 
     def calculate_total_quantity(self) -> int:
-        return sum(q for q, _ in self.breakdown_quantity_prices)
+        return sum(q for q, _ in self.breakdown_prices)
 
     def calculate_total_cost(self) -> int:
-        return sum(q * p for q, p in self.breakdown_quantity_prices)
+        return sum(q * p for q, p in self.breakdown_prices)
 
     def is_equal(self, other: 'Item') -> bool:
         return self.market_of_origin == other.market_of_origin and self.producer.name == other.producer.name
@@ -135,13 +135,13 @@ class Item:
 
         price_map = {}
         # Merge existing breakdown
-        for q, p in self.breakdown_quantity_prices:
+        for q, p in self.breakdown_prices:
             price_map[p] = price_map.get(p, 0) + q
         # Add from other
-        for q, p in other.breakdown_quantity_prices:
+        for q, p in other.breakdown_prices:
             price_map[p] = price_map.get(p, 0) + q
 
-        self.breakdown_quantity_prices = [(q, p) for p, q in price_map.items()]
+        self.breakdown_prices = [(q, p) for p, q in price_map.items()]
         self.total_quantity = self.calculate_total_quantity()
         self.total_cost = self.calculate_total_cost()
 
@@ -152,7 +152,7 @@ class Item:
         quantity_to_remove = other.calculate_total_quantity()
 
         new_breakdown = []
-        for q, p in self.breakdown_quantity_prices:
+        for q, p in self.breakdown_prices:
             if quantity_to_remove <= 0:
                 new_breakdown.append((q, p))
                 continue
@@ -164,7 +164,7 @@ class Item:
                 new_breakdown.append((q - quantity_to_remove, p))
                 quantity_to_remove = 0
 
-        self.breakdown_quantity_prices = new_breakdown
+        self.breakdown_prices = new_breakdown
         self.total_quantity = self.calculate_total_quantity()
         self.total_cost = self.calculate_total_cost()
 
@@ -220,6 +220,12 @@ class TradeGoodStatus:
         self.equilibrium_quantity = equilibrium_quantity
         self.total_supply = total_supply
         self.available_supply = 0
+
+        # these 2 variables are what is gonna be used to calculate new prices every day. Over time, these values are
+        # drifting towards the current supply. When recalculating due to breakpoints, these values change, making big
+        # price changes
+        self.last_buy_supply = total_supply
+        self.last_sell_supply = total_supply
 
         self.buy_price, self.sell_price = 0, 0
 
@@ -328,16 +334,16 @@ def get_breakpoint_quantities(equilibrium, after_supply, before_supply=100000000
         before_supply_ratio = temp
         reverse = False
 
-    if after_supply_ratio < MAJOR_DEFICIT_SUPPLY_RATIO <= before_supply_ratio:
+    if after_supply_ratio < MAJOR_DEFICIT_SUPPLY_RATIO < before_supply_ratio:
         breakpoints.append(a)
 
-    if after_supply_ratio < DEFICIT_SUPPLY_RATIO <= before_supply_ratio:
+    if after_supply_ratio < DEFICIT_SUPPLY_RATIO < before_supply_ratio:
         breakpoints.append(b)
 
-    if before_supply_ratio > SURPLUS_SUPPLY_RATIO >= after_supply_ratio:
+    if before_supply_ratio > SURPLUS_SUPPLY_RATIO > after_supply_ratio:
         breakpoints.append(c)
 
-    if before_supply_ratio > MAJOR_SURPLUS_SUPPLY_RATIO >= after_supply_ratio:
+    if before_supply_ratio > MAJOR_SURPLUS_SUPPLY_RATIO > after_supply_ratio:
         breakpoints.append(d)
 
     if reverse:
@@ -378,6 +384,22 @@ class Market:
             for key in TRADE_GOODS_DATA.keys()
         }
 
+    def drift_prices(self, trade_good):
+        drift_factor = 0.1
+        status = self.trade_good_status[trade_good]
+
+        # you can access status.total_supply and status.equilibrium_quantity
+        supply = status.total_supply
+
+        # Drift buy supply
+        buy_delta = supply - status.last_buy_supply
+        self.trade_good_status[trade_good].last_buy_supply += buy_delta * drift_factor
+
+        # Drift sell supply
+        sell_delta = supply - status.last_sell_supply
+        self.trade_good_status[trade_good].last_sell_supply += sell_delta * drift_factor
+
+
     def update_available_supply(self, trade_good):
         status = self.trade_good_status[trade_good]
         new_supply = status.total_supply - bracketed_pricing(status.equilibrium_quantity)[1]
@@ -398,10 +420,9 @@ class Market:
 
     def add_goods(self, trade_good, ee_index, amount):
         self.buy_orders[trade_good][ee_index].quantity += amount
-        before_supply = self.trade_good_status[trade_good].total_supply
         self.trade_good_status[trade_good].total_supply += amount
+        self.recalculate_prices(trade_good, "Buy", False)
         self.update_available_supply(trade_good)
-        self.recalculate_prices(trade_good, "Buy", before_supply, True)
 
         return amount
 
@@ -415,6 +436,7 @@ class Market:
             amount_remaining -= quantity_removed
 
         self.trade_good_status[trade_good].total_supply -= amount
+        self.recalculate_prices(trade_good, "Sell", False)
         self.update_available_supply(trade_good)
 
         return amount
@@ -437,51 +459,47 @@ class Market:
                                       price_point, status.daily_fluctuation,
                                       self.get_sell_price_bonus(item, trade_good))
 
-    def recalculate_prices(self, trade_good, operation, before_supply, full_recalculate):
+    def recalculate_prices(self, trade_good, operation="Buy", breakpoint_recalculate=True):
+        if len(self.buy_orders[trade_good]) == 0:
+            return
+
         status = self.trade_good_status[trade_good]
 
-        if full_recalculate:
-            breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_supply)
-            breakpoint_quantity = breakpoints[-1] if breakpoints else status.total_supply
+        last_supply = status.last_buy_supply if operation == "Buy" else status.last_sell_supply
+        new_supply = last_supply
 
-            ratio = breakpoint_quantity / status.equilibrium_quantity if status.equilibrium_quantity != 0 else breakpoint_quantity
-
-            sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
-
-            # Only recalculate to the same operation we're executing
+        if breakpoint_recalculate:
+            breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, last_supply)
+            new_supply = breakpoints[-1] if breakpoints else new_supply
             if operation == "Buy":
-                for buy_order in self.buy_orders[trade_good]:
-                    buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good, ratio)
-                    buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
+                status.last_buy_supply = new_supply
+                print(f"Last Buy now: {status.last_buy_supply}")
+            else:
+                status.last_sell_supply = new_supply
+                print(f"Last Sell now: {status.last_sell_supply}")
 
-            if operation == "Sell":
-                minimum_price = min([buy_order.calculated_price for buy_order in self.buy_orders[trade_good]]) - 1
+        ratio = new_supply / status.equilibrium_quantity if status.equilibrium_quantity != 0 else new_supply
 
-                self.sell_order[trade_good].price_point = sell_price
-                self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, minimum_price)
+        sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
 
-            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
-        else:
-            self.trade_good_status[trade_good].calculate_new_daily_fluctuation()
-
-            if not (self.buy_orders[trade_good] and self.sell_order[trade_good]):
-                return
-
+        # Only recalculate to the same operation we're executing otherwise we calculate both
+        if operation == "Buy" or not breakpoint_recalculate:
             for buy_order in self.buy_orders[trade_good]:
+                buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good, ratio)
                 buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
 
+        if operation == "Sell" or not breakpoint_recalculate:
             minimum_price = min([buy_order.calculated_price for buy_order in self.buy_orders[trade_good]]) - 1
-
-            sell_price, buy_price = self.calculate_sell_price_point(trade_good, status.total_supply / status.equilibrium_quantity)
 
             self.sell_order[trade_good].price_point = sell_price
             self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, minimum_price)
 
-            self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
+        self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
 
     def get_bracketed_set(self, trade_good, operation, before_total, before_cost, quantity_operated, order_index=-1, item=None):
         status = self.trade_good_status[trade_good]
-        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_total)
+        last_supply = status.last_buy_supply if operation == "Buy" else status.last_sell_supply
+        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, last_supply)
 
         if breakpoints:
             breakpoint_total = before_total
@@ -514,13 +532,13 @@ class Market:
                         order_breakpoint_prices.append(price)
                         order_breakpoint_quantities.append(quantity)
 
-                self.recalculate_prices(trade_good, operation, before_total, True)
+                self.recalculate_prices(trade_good, operation, True)
                 order = self.buy_orders[trade_good][order_index] if operation == "Buy" else self.sell_order[trade_good]
                 order_breakpoint_quantities.append(quantity)
                 order_breakpoint_prices.append(order.calculated_price)
             else:
                 quantity = quantity_operated - quantity
-                self.recalculate_prices(trade_good, operation, before_total, True)
+                self.recalculate_prices(trade_good, operation, True)
                 order = self.buy_orders[trade_good][order_index] if operation == "Buy" else self.sell_order[trade_good]
                 order_breakpoint_quantities.append(quantity)
                 order_breakpoint_prices.append(order.calculated_price)
@@ -536,7 +554,7 @@ class Market:
         order = self.buy_orders[trade_good][order_index]
 
         if order.quantity == 0:
-            return Item(-1, [], '', None, -1)
+            return Item(-1, [], '', None)
 
         # create pairs for quantity and price
         quantity_operated = quantity if order.quantity >= quantity else order.quantity
@@ -548,7 +566,7 @@ class Market:
         self.buy_orders[trade_good][order_index] = order
         self.sell_order[trade_good].balance_quantity += quantity_operated
 
-        self.trade_good_status[trade_good].total_supply = self.trade_good_status[trade_good].total_supply - quantity_operated
+        self.trade_good_status[trade_good].total_supply -= quantity_operated
         self.update_available_supply(trade_good)
 
         order_breakpoint_quantities, order_breakpoint_prices, total_price = self.get_bracketed_set(
@@ -564,13 +582,12 @@ class Market:
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation
         surplus_point = bracketed_pricing(self.trade_good_status[trade_good].equilibrium_quantity)[2]
-        old_supply = old_supply if old_supply > surplus_point else surplus_point - old_supply
 
         if new_supply <= surplus_point:
             return  # Nothing to distribute
 
         orders = self.buy_orders[trade_good]
-        quantity_to_distribute = new_supply - old_supply
+        quantity_to_distribute = new_supply - old_supply if old_supply > surplus_point else new_supply - surplus_point + 1
 
         if not orders or quantity_to_distribute <= 0:
             return
@@ -620,6 +637,7 @@ class Market:
         self.distribute_goods(trade_good,before_total, self.trade_good_status[trade_good].total_supply)
         self.update_available_supply(trade_good)
 
+        # bug: when it exactly reaches a breakpoint, it incorrectly triggers a recalculation
         order_breakpoint_quantities, order_breakpoint_prices, total_price = self.get_bracketed_set(
             trade_good, "Sell", before_total, before_cost, quantity_operated, -1, item)
 
@@ -653,6 +671,7 @@ class Market:
                                      self.trade_good_status[trade_good].daily_fluctuation,
                                      self.get_sell_price_bonus(None, trade_good),
                                      min_buy_price)
+
 
     def calculate_buy_price_point(self, order_listing : OrderListing, trade_good : str, new_supply_ratio=-1) -> float:
         # I'm pretty proud of this as this ensures the resulting price to be strictly within the base range, and it's
@@ -744,10 +763,10 @@ class Market:
 
 
         temp = Market(market_name, development_score, temp_trade_statuses)
-        temp.generate_new_orders(equilibrium, supply, development_score)
+        temp.generate_new_orders(equilibrium, supply)
         return temp
 
-    def generate_new_orders(self, equilibrium, supply, market_score):
+    def generate_new_orders(self, equilibrium, supply):
 
         # TODO: Make Producers for all of the remaining trade goods, figure out how to get names of corporations too.
         # for trade_good in SimulationStatus().global_trade_good_status:
@@ -788,6 +807,7 @@ class Market:
         sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio) # buy_price is a generic price without variations of producers
 
         self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
+        self.trade_good_status[trade_good].total_supply = supply
 
         # BUY ORDERS
         for i in range(producers_amount):
@@ -830,7 +850,7 @@ class Market:
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
             print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(status.buy_price * self.development_score, 2)} "
-                  f"{round(status.sell_price * self.development_score, 2)} | Max sell:{max_sell_final_price} "
+                  f"{round(status.sell_price * self.development_score, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
                   f"| Supply Ratio: {status.total_supply / status.equilibrium_quantity} "
                   f"| Today's Fluctuation: {round(status.daily_fluctuation, 2)}")
 

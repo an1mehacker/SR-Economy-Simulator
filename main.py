@@ -105,12 +105,12 @@ if __name__ == "__main__":
                 continue
 
             user.add_item(item)
-            if len(item.breakdown_quantity_prices) == 1:
-                print(f"You bought {item.breakdown_quantity_prices[0][0]} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
+            if len(item.breakdown_prices) == 1:
+                print(f"You bought {item.breakdown_prices[0][0]} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
                 continue
 
-            brackets = item.breakdown_quantity_prices
+            brackets = item.breakdown_prices
 
             for q, p in brackets:
                 print(f"You bought {q} {tg} at {p}cr each")
@@ -132,22 +132,22 @@ if __name__ == "__main__":
                 command, params = parse_command()
                 continue
 
-            item = user.items[item_index]
-            # if sell, use existing item on actor to sell, if quantity 0, delete item
-            item = market.sell(tg, item, quantity)
-
             if quantity < 1:
                 print(f"Can only sell a positive amount")
                 command, params = parse_command()
                 continue
 
+            item = user.items[item_index]
+            # if sell, use existing item on actor to sell, if quantity 0, delete item
+            item = market.sell(tg, item, quantity)
+
             user.remove_item(item)
-            if len(item.breakdown_quantity_prices) == 1:
+            if len(item.breakdown_prices) == 1:
                 print(f"You sold {item.total_quantity} {tg} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
                 continue
 
-            for q, p in item.breakdown_quantity_prices:
+            for q, p in item.breakdown_prices:
                 print(f"You sold {q} {tg} at {p}cr each")
 
             print(f"Totaling {item.total_quantity} {tg} for {item.total_cost}cr!")
@@ -176,9 +176,10 @@ if __name__ == "__main__":
                 SimulationStatus().skip_day()
 
             days = SimulationStatus().days_elapsed - days
-
+            market.drift_prices("Technology Goods")
             for trade_good in TRADE_GOODS_DATA:
-                market.recalculate_prices(trade_good, "", -1, False)
+                #market.drift_prices(trade_good)
+                market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
 
         if command == "t":
