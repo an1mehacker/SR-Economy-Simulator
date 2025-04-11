@@ -1,10 +1,87 @@
 ﻿import math
 import random
-from idlelib.window import register_callback
 
 from math2 import lerp, clamp, map_range_clamped
 from dataclasses import dataclass
 from typing import List, Tuple
+
+TRADE_GOOD_ENTERPRISE_RULES = {
+    "Organics": {
+        "base_amount": 4,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 2, "Mixed": 0, "Industrial": -1},
+    },
+    "Synthetics": {
+        "base_amount": 3,
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 1},
+    },
+    "Common Minerals": {
+        "base_amount": 5,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 1},
+        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
+    },
+    "Rare Minerals": {
+        "base_amount": 2,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 1},
+    },
+    "Refined Minerals": {
+        "base_amount": 3,
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+    "Essential Goods": {
+        "base_amount": 5,
+        "politics": {"Democracy": 1, "Republic": 2, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
+    },
+    "Medicine": {
+        "base_amount": 3,
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+    "Vice Goods": {
+        "base_amount": 2,
+        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 1},
+        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
+    },
+    "Technology Goods": {
+        "base_amount": 2,
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0},
+        "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
+    },
+    "Luxury Goods": {
+        "base_amount": 1,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": 0, "Anarchy": 1},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+    "Weapons": {
+        "base_amount": 3,
+        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+    "Narcotics": {
+        "base_amount": 1,
+        "politics": {"Democracy": 0, "Republic": -1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 2},
+        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
+    },
+    "Equipment Parts": {
+        "base_amount": 2,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0},
+        "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
+    },
+    "Fuel": {
+        "base_amount": 4,
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+    "Ammunition": {
+        "base_amount": 3,
+        "politics": {"Democracy": 0, "Republic": 1, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1},
+        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+    },
+}
 
 TRADE_GOODS_DATA = {
         "Organics":         {"base_price": 17,  "base_range": 0.40},
@@ -22,7 +99,23 @@ TRADE_GOODS_DATA = {
         "Equipment Parts":  {"base_price": 90,  "base_range": 0.15},
         "Fuel":             {"base_price": 10,  "base_range": 0.30},
         "Ammunition":       {"base_price": 15,  "base_range": 0.20},
-    }
+}
+
+ILLEGAL_GOODS_BY_RACE = {
+    "Maloq": {"Vice Goods", "Luxury Goods", "Narcotics"},
+    "Peleng": set(),  # nothing banned
+    "Human": {"Weapons", "Narcotics"},
+    "Faeyan": {"Weapons", "Narcotics"},
+    "Gaalian": {"Vice Goods", "Narcotics"},
+}
+
+ILLEGAL_GOODS_BY_POLITICS = {
+    "Democracy": {"Narcotics", "Weapons"},
+    "Republic": {"Narcotics"},
+    "Dictatorship": {"Narcotics", "Vice Goods"},
+    "Monarchy": {"Luxury Goods", "Narcotics"},
+    "Anarchy": set(),  # everything goes
+}
 
 ENTERPRISE_PRICE_SPREAD = 0.25
 INDIVIDUAL_PRICE_SPREAD = 0.4
@@ -195,17 +288,25 @@ class Actor:
                 del self.items[index]
         return self
 
+def is_legal(trade_good, race, political_system):
+    return not (
+        trade_good in ILLEGAL_GOODS_BY_RACE.get(race, set()) or
+        trade_good in ILLEGAL_GOODS_BY_POLITICS.get(political_system, set())
+    )
+
+#is_legal("Vice Goods", "Maloq", "Democracy")  # ➝ False
+#is_legal("Weapons", "Peleng", "Anarchy")      # ➝ True
+
 class TradeGoodStatus:
-    def __init__(self, essential, legality, max_fluctuation, daily_fluctuation, buy_modifiers, sell_modifiers,
-                 equilibrium_quantity, total_supply):
+    def __init__(self, essential : bool, legality : bool, max_fluctuation, buy_modifiers, sell_modifiers,
+                 equilibrium_quantity, total_supply, enterprise_amount):
         """
         A status for a trade good that applies to an entire market
 
         :param essential: 'Non-Essential' or 'Essential'
         :param legality: 'Legal' or 'Illegal'
-        :param max_fluctuation: flat float value
-        :param daily_fluctuation: a value of -max_fluctation to +max_fluctuation. this value is added at the end of
-        price calculation to all orders
+        :param max_fluctuation: flat float value. this determines daily fluctuation which is -max_fluctation to +max_fluctuation.
+        this value is added at the end of price calculation to all orders
         :param buy_modifiers: dict of key: Producer, value: additive float bonus like 0.7 -30% when buying
         :param sell_modifiers: same but for selling.
         :param equilibrium_quantity: the total quantity at which the price becomes base price. this value influences
@@ -214,12 +315,14 @@ class TradeGoodStatus:
         self.essential = essential
         self.legality = legality
         self.max_fluctuation = max_fluctuation
-        self.daily_fluctuation = daily_fluctuation
+        self.daily_fluctuation = 0
+        self.calculate_new_daily_fluctuation()
         self.buy_modifiers = buy_modifiers
         self.sell_modifiers = sell_modifiers
         self.equilibrium_quantity = equilibrium_quantity
         self.total_supply = total_supply
         self.available_supply = 0
+        self.enterprise_amount = enterprise_amount
 
         # these 2 variables are what is gonna be used to calculate new prices every day. Over time, these values are
         # drifting towards the current supply. When recalculating due to breakpoints, these values change, making big
@@ -232,7 +335,18 @@ class TradeGoodStatus:
         self.situation = "Idk"
 
     def calculate_new_daily_fluctuation(self):
-        self.daily_fluctuation = random.uniform(-self.max_fluctuation, self.max_fluctuation)
+        max_step = self.max_fluctuation / 3
+        delta = random.uniform(-max_step, max_step)
+
+        # If fluctuation is at a boundary, flip delta to stay in range
+        if self.daily_fluctuation == -self.max_fluctuation and delta < 0:
+            delta *= -1
+        elif self.daily_fluctuation == self.max_fluctuation and delta > 0:
+            delta *= -1
+
+        self.daily_fluctuation += delta
+
+        self.daily_fluctuation = clamp(self.daily_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
 def calculate_buy_price_logistic(floor, ceil, supply_ratio, buy_k=0.95):
     """
@@ -262,7 +376,7 @@ def calculate_sell_price_logistic(buy_price, supply_ratio, min_sell_discount=0.8
     return buy_price * min_sell_discount + (max_sell_discount - min_sell_discount) / (
             1 + math.exp(-sell_k * (1 - supply_ratio)))
 
-def trade_good_distribution(total_goods, num_slots, spread_multiplier=0.75):
+def trade_good_distribution(total_goods : int, num_slots : int, spread_multiplier=0.75):
     """
     Distributes total_goods into num_slots using a smooth descending pattern with controlled randomness.
 
@@ -311,7 +425,7 @@ def bracketed_pricing(equilibrium):
             round(SURPLUS_SUPPLY_RATIO * equilibrium), round(MAJOR_SURPLUS_SUPPLY_RATIO * equilibrium))
 
 def get_breakpoint_quantities(equilibrium, after_supply, before_supply=100000000):
-    # get a list of breakpoint quantites in order of the operation
+    # get a list of breakpoint quantities in order of the operation
     # the last element of the list represents the new breakpoint quantity that corresponds to after supply
     # the breakpoints selected are always open interval meaning they will only show up if the ratios go 1 value above
     # or below the required.
@@ -370,8 +484,8 @@ class Market:
 
         # We can opt to instead of having a collection of EEs, we have a dict of orders for each trade good type like we
         # have with producer and their dict of orders.
-        # then an order listing has a reference to an producer instead.
-        # This way it's easier to handle orders by type cause we don't have to filter EEs based on their orders
+        # then an order listing has a reference to a producer instead.
+        # This way it's easier to handle orders by type because we don't have to filter EEs based on their orders
         # we can also easily determine which order belongs to an Enterprise or Individual Corporation
 
         self.buy_orders = {
@@ -385,17 +499,15 @@ class Market:
         }
 
     def drift_prices(self, trade_good):
+        # doesn't actually change prices but sets it up when the prices recalculate
         drift_factor = 0.1
         status = self.trade_good_status[trade_good]
 
-        # you can access status.total_supply and status.equilibrium_quantity
         supply = status.total_supply
 
-        # Drift buy supply
         buy_delta = supply - status.last_buy_supply
         self.trade_good_status[trade_good].last_buy_supply += buy_delta * drift_factor
 
-        # Drift sell supply
         sell_delta = supply - status.last_sell_supply
         self.trade_good_status[trade_good].last_sell_supply += sell_delta * drift_factor
 
@@ -652,7 +764,7 @@ class Market:
 
         return bonuses[order_listing.producer] if order_listing.producer.name in bonuses else 1.0
 
-    def get_sell_price_bonus(self, item : Item, trade_good) -> float:
+    def get_sell_price_bonus(self, item, trade_good) -> float:
         bonuses = self.trade_good_status[trade_good].sell_modifiers
 
         return bonuses[item.producer] if item is not None and item.producer.name in bonuses else 1.0
@@ -750,49 +862,45 @@ class Market:
         return sell_price * sell_ratio, generic_buy_price
 
     @staticmethod
-    def generate_market(market_name, equilibrium, supply, development_score):
-        trade_status1 = TradeGoodStatus("Non-Essential", "Legal", 2, 0,
-                                        [], [], 500, 480)
+    def generate_market(market_name, development_score, political_system, development_type):
+        BASE_MULTIPLIER = 20000
+        VARIANCE = 0.5
+        FlUCTUATION_FACTOR = 20
 
-        temp_trade_statuses = {}
-
-        # TODO: Needs a method to create each trade good status based on market's conditions
+        statuses = {}
 
         for trade_good in TRADE_GOODS_DATA:
-            temp_trade_statuses[trade_good] = trade_status1
+            base_price = TRADE_GOODS_DATA[trade_good]["base_price"]
+            raw_equilibrium = BASE_MULTIPLIER / base_price
 
+            equilibrium = round(random.uniform(1 - VARIANCE, 1 + VARIANCE) * raw_equilibrium)
+            max_fluctuation = base_price / FlUCTUATION_FACTOR
+            total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
-        temp = Market(market_name, development_score, temp_trade_statuses)
-        temp.generate_new_orders(equilibrium, supply)
+            data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
+            enterprise_amount = data["base_amount"] + data["politics"][political_system] + data["development"][development_type]
+            print(f"{trade_good} : {enterprise_amount} enterprises")
+
+            # TODO: Essential, Legal, Modifiers and Equilibrium need to be better defined by market conditions
+            trade_status = TradeGoodStatus(False, True, max_fluctuation,
+                                            [], [], equilibrium, total_supply, enterprise_amount)
+            statuses[trade_good] = trade_status
+
+        temp = Market(market_name, development_score, statuses)
+
+        for trade_good in TRADE_GOODS_DATA.keys():
+            temp.generate_new_orders(trade_good)
         return temp
 
-    def generate_new_orders(self, equilibrium, supply):
+    def generate_new_orders(self, trade_good):
+        status = self.trade_good_status[trade_good]
+        equilibrium = status.equilibrium_quantity
+        supply = status.total_supply
 
-        # TODO: Make Producers for all of the remaining trade goods, figure out how to get names of corporations too.
-        # for trade_good in SimulationStatus().global_trade_good_status:
-
-        trade_good = "Technology Goods"
-        # most of the work in determining the price is here
-        temp_status = TradeGoodStatus("Non-Essential", "Legal", 2, 0,
-                                      {},  {}, equilibrium, supply)
-
-        self.trade_good_status[trade_good] = temp_status
-
-        # allocate supply for an amount of EEs
-        # determine spread of prices across all EEs. 0.95x - 1.05x for base prices over 20, under 20 0.8x - 1.2x
-        # this spread isn't related to price distributions on main.py as that's how much prices vary over multiple economies
-        # create order listings for each Producer by using the price spread
-        # the price point depends on the quality where the random value tends to the range interval.
-
-
-        # available supply is what the market offers to export to avoid a player induced deficit by not making available
-        # everything to purchase. If Equilibrium is 100, you won't be able to buy enough to cause supply go below
-        # 0.75x - 75 units. Meaning the player can only buy from 0.75 ratio and above. However, the price calculations
-        # still use of the total supply existing on the market
         available_supply = supply - bracketed_pricing(equilibrium)[1]
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
-                 'Voidware Devices', 'Inilai Electronics', 'Interstellar Circuits']
-        producers_amount = len(names)
+                 'Voidware Devices', 'Inilai Electronics', 'Interstellar Circuits', 'Lord Technologies', 'Lord Technologies']
+        producers_amount = status.enterprise_amount
 
         buy_goods = trade_good_distribution(available_supply, producers_amount, 0.5)
 
@@ -845,7 +953,7 @@ class Market:
         price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range
 
-        max_sell_final_price = min([order.calculated_price for order in buy_orders]) - 1
+        #max_sell_final_price = min([order.calculated_price for order in buy_orders]) - 1
 
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
@@ -925,5 +1033,5 @@ class Market:
             buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
 
             print(f"{str(i + 1) + "." + (" >" if selected else ""):<5} {trade_good + (" <" if selected else ""):<20} - "
-                  f"Buy (x{status.available_supply:<5}) at ~{buy_weighted_average_price:<6}"
-                  f" |    Sell (x{sell_order.quantity:<5}) at ~{sell_order.calculated_price:<6}")
+                  f"Buy (x{status.available_supply:<5}) at ~{buy_weighted_average_price:<6} from {status.enterprise_amount} enterprises"
+                  f" |   Sell (x{sell_order.quantity:<5}) at {sell_order.calculated_price:>4}cr")

@@ -3,7 +3,7 @@ My attempt at creating a dynamic economy inspired by the game Space Rangers HD: 
 To use this project, run main.py and enter a desired amount for the market parameters
 
 # Features
-- Buy from multiple Producers at different prices and sell them with your bought items
+- Buy from multiple Producers and trade goods at different prices and sell them with your bought items
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
@@ -16,7 +16,7 @@ Here's an example use
 
 Most important file is economy_entity.py
 
-Most important functions are: Market.generate_new_ees(), Market.buy(), Market.sell(), calculate_price_point(), 
+Most important functions are: Market.generate_market(), Market.buy(), Market.sell(), calculate_price_point(), 
 
 # Price factors
 
@@ -34,7 +34,6 @@ Market:
 
 # Planned features
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
-- Generate all trade goods
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status

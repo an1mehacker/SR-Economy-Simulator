@@ -51,28 +51,29 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10), equilibrium supply, current supply, and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 500 750 1)\n> ")
+            "Enter trade difficulty (1-10), and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 1.0)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, equilibrium, supply, development_score = 1, 500, 750, 1.0
+            trade_difficulty, development_score = 1, 1.0
             break
 
         try:
-            trade_difficulty, equilibrium, supply, development_score = setup_input2
+            trade_difficulty, development_score = setup_input2
 
             trade_difficulty = clamp(int(trade_difficulty), 1, 10)
-            equilibrium = int(equilibrium)
-            supply = int(supply)
             development_score = clamp(float(development_score), 0.9, 1.1)
             break
         except ValueError:
-            print("Invalid input, enter something like '2 500 300 0.9' or press Enter for default values (1 500 500 1)")
+            print("Invalid input, enter something like '2 0.9' or press Enter for default values (1 1.0)")
 
     simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
     tg = "Technology Goods"
-    market = Market.generate_market("Planet", equilibrium, supply, development_score)
+    political_system = "Democracy"
+    development_type = "Mixed"
+
+    market = Market.generate_market("Planet", development_score, political_system, development_type)
     user = Actor(10000)
     market.summary_listing(tg)
     print("\nType help for complete list of commands\n")
@@ -106,7 +107,7 @@ if __name__ == "__main__":
 
             user.add_item(item)
             if len(item.breakdown_prices) == 1:
-                print(f"You bought {item.breakdown_prices[0][0]} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
+                print(f"You bought {item.total_quantity} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
                 continue
 
@@ -176,9 +177,8 @@ if __name__ == "__main__":
                 SimulationStatus().skip_day()
 
             days = SimulationStatus().days_elapsed - days
-            market.drift_prices("Technology Goods")
             for trade_good in TRADE_GOODS_DATA:
-                #market.drift_prices(trade_good)
+                market.drift_prices(trade_good)
                 market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
 
