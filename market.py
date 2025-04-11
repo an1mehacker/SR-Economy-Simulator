@@ -206,7 +206,8 @@ class SellListing:
     calculated_price : int = -1
 
 class Item:
-    def __init__(self, total_quantity: int, breakdown_prices: List[Tuple[int, int]], market_of_origin: str, producer):
+    def __init__(self, trade_good, total_quantity: int, breakdown_prices: List[Tuple[int, int]], market_of_origin: str, producer):
+        self.trade_good = trade_good
         self.total_quantity = total_quantity
         self.breakdown_prices = breakdown_prices  # List of (quantity, price)
         self.market_of_origin = market_of_origin
@@ -220,7 +221,7 @@ class Item:
         return sum(q * p for q, p in self.breakdown_prices)
 
     def is_equal(self, other: 'Item') -> bool:
-        return self.market_of_origin == other.market_of_origin and self.producer.name == other.producer.name
+        return self.trade_good == other.trade_good and self.market_of_origin == other.market_of_origin and self.producer.name == other.producer.name
 
     def add(self, other: 'Item'):
         if not self.is_equal(other):
@@ -287,6 +288,7 @@ class Actor:
             if self.items[index].total_quantity == 0:
                 del self.items[index]
         return self
+
 
 def is_legal(trade_good, race, political_system):
     return not (
@@ -666,7 +668,7 @@ class Market:
         order = self.buy_orders[trade_good][order_index]
 
         if order.quantity == 0:
-            return Item(-1, [], '', None)
+            return Item(trade_good, -1, [], '', None)
 
         # create pairs for quantity and price
         quantity_operated = quantity if order.quantity >= quantity else order.quantity
@@ -689,7 +691,7 @@ class Market:
             order_breakpoint_prices = [before_cost]
 
         # for an accurate calculation of prices, items retain complete breakdown of quantities and prices
-        return Item(sum(order_breakpoint_quantities), list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, order.producer)
+        return Item(trade_good, sum(order_breakpoint_quantities), list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, order.producer)
 
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation
@@ -757,7 +759,7 @@ class Market:
             order_breakpoint_quantities = [quantity_operated]
             order_breakpoint_prices = [before_cost]
 
-        return Item(quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, item.producer)
+        return Item(trade_good, quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, item.producer)
 
     def get_buy_price_bonus(self, order_listing, trade_good) -> float:
         bonuses = self.trade_good_status[trade_good].buy_modifiers
@@ -823,7 +825,6 @@ class Market:
         return calculate_buy_price_logistic(floor, ceil, ratio)
 
     def calculate_sell_price_point(self, trade_good : str, new_supply_ratio=-1) -> (float, float):
-        # TODO: Remove copy pasted code
         if trade_good not in TRADE_GOODS_DATA.keys():
             return -1
 
@@ -898,6 +899,7 @@ class Market:
         supply = status.total_supply
 
         available_supply = supply - bracketed_pricing(equilibrium)[1]
+        # TODO: Use different corporation names
         names = ['Lord Technologies', 'Infinity Inc.', 'Celestial Industries', 'Nillaik Systems Ltd.',
                  'Voidware Devices', 'Inilai Electronics', 'Interstellar Circuits', 'Lord Technologies', 'Lord Technologies']
         producers_amount = status.enterprise_amount
@@ -905,11 +907,6 @@ class Market:
         buy_goods = trade_good_distribution(available_supply, producers_amount, 0.5)
 
         self.trade_good_status[trade_good].available_supply = available_supply
-
-        #TODO: Programatically determine amount of enterprise EEs to generate based on market's conditions instead of
-        # the hardcoded number 7 we're experimenting. For example more populated developed planets have in general
-        # more technology goods corporations. Additionally assign trade good types for EEs immediately
-
         ratio = supply / equilibrium if equilibrium != 0 else supply
 
         sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio) # buy_price is a generic price without variations of producers
@@ -996,11 +993,13 @@ class Market:
         print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
         print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr")
 
-        # TODO List selling bonuses here and user items
+        # TODO List selling bonuses here and user items. ALSO FIX WRONG ITEM DISPLAY
 
-        if len(items) == 0:
+        filtered_items = [item for item in items if item.trade_good == trade_good]
+
+        if len(filtered_items) == 0:
             print(f"No {trade_good} to sell")
-        for i, item in enumerate(items):
+        for i, item in enumerate(filtered_items):
             print(f"{i + 1}. - x{item.total_quantity:<5} {trade_good} at {round(item.total_cost / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")

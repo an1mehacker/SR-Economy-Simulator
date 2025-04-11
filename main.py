@@ -120,7 +120,6 @@ if __name__ == "__main__":
 
 
         if command in ["s", "sl"]:
-            operation = "Sell"
             if len(params) < 2:
                 print(f"Usage: s{'l' if command in ["bl", "sl"] else ''} [item index] [quantity]")
                 command, params = parse_command()
@@ -135,6 +134,12 @@ if __name__ == "__main__":
 
             if quantity < 1:
                 print(f"Can only sell a positive amount")
+                command, params = parse_command()
+                continue
+
+            sell_amount = market.sell_order[tg].quantity
+            if sell_amount <= 0:
+                print(f"Market refuses to accept any more {tg}")
                 command, params = parse_command()
                 continue
 
