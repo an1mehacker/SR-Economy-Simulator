@@ -473,7 +473,7 @@ def calculate_final_price(inflation, base_price, price_point, daily_fluctuation,
 
 
 class Market:
-    def __init__(self, market_name, development_score, trade_good_status):
+    def __init__(self, market_name, market_size, development_score, trade_good_status):
         """
 
         :param market_name: string - name of the market like the planet or station's name
@@ -481,6 +481,7 @@ class Market:
         :param trade_good_status: list of TradeGoodStatus
         """
         self.name = market_name
+        self.market_size = market_size
         self.development_score = development_score
         self.trade_good_status = trade_good_status
 
@@ -863,7 +864,7 @@ class Market:
         return sell_price * sell_ratio, generic_buy_price
 
     @staticmethod
-    def generate_market(market_name, development_score, political_system, development_type):
+    def generate_market(market_name, market_size, development_score, political_system, development_type):
         BASE_MULTIPLIER = 20000
         VARIANCE = 0.5
         FlUCTUATION_FACTOR = 20
@@ -872,22 +873,23 @@ class Market:
 
         for trade_good in TRADE_GOODS_DATA:
             base_price = TRADE_GOODS_DATA[trade_good]["base_price"]
-            raw_equilibrium = BASE_MULTIPLIER / base_price
+            raw_equilibrium = BASE_MULTIPLIER * (market_size / 1000) / base_price
 
             equilibrium = round(random.uniform(1 - VARIANCE, 1 + VARIANCE) * raw_equilibrium)
+            print(equilibrium)
             max_fluctuation = base_price / FlUCTUATION_FACTOR
             total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
             data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
             enterprise_amount = data["base_amount"] + data["politics"][political_system] + data["development"][development_type]
-            print(f"{trade_good} : {enterprise_amount} enterprises")
+            #print(f"{trade_good} : {enterprise_amount} enterprises")
 
             # TODO: Essential, Legal, Modifiers and Equilibrium need to be better defined by market conditions
             trade_status = TradeGoodStatus(False, True, max_fluctuation,
                                             [], [], equilibrium, total_supply, enterprise_amount)
             statuses[trade_good] = trade_status
 
-        temp = Market(market_name, development_score, statuses)
+        temp = Market(market_name, market_size, development_score, statuses)
 
         for trade_good in TRADE_GOODS_DATA.keys():
             temp.generate_new_orders(trade_good)

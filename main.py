@@ -51,16 +51,17 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10), and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 1.0)\n> ")
+            "Enter trade difficulty (1-10), market size (500-3000) and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 1000 1.0)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, development_score = 1, 1.0
+            trade_difficulty, market_size, development_score = 1, 1000, 1.0
             break
 
         try:
-            trade_difficulty, development_score = setup_input2
+            trade_difficulty, market_size, development_score = setup_input2
 
             trade_difficulty = clamp(int(trade_difficulty), 1, 10)
+            market_size = clamp(int(market_size), 500, 3000)
             development_score = clamp(float(development_score), 0.9, 1.1)
             break
         except ValueError:
@@ -69,11 +70,15 @@ if __name__ == "__main__":
     simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
+    political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy"]
+    development_types = ["Agrarian", "Mixed", "Industrial"]
+
     tg = "Technology Goods"
     political_system = "Democracy"
     development_type = "Mixed"
+    print(market_size)
 
-    market = Market.generate_market("Planet", development_score, political_system, development_type)
+    market = Market.generate_market("Planet", market_size, development_score, political_system, development_type)
     user = Actor(10000)
     market.summary_listing(tg)
     print("\nType help for complete list of commands\n")
@@ -144,8 +149,7 @@ if __name__ == "__main__":
                 continue
 
             item = user.items[item_index]
-            # if sell, use existing item on actor to sell, if quantity 0, delete item
-            item = market.sell(tg, item, quantity)
+            item = market.sell(tg, item, quantity) # returns the amount of items that were sold
 
             user.remove_item(item)
             if len(item.breakdown_prices) == 1:
