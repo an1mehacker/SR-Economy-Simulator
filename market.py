@@ -84,21 +84,21 @@ TRADE_GOOD_ENTERPRISE_RULES = {
 }
 
 TRADE_GOODS_DATA = {
-        "Organics":         {"base_price": 17,  "base_range": 0.40},
-        "Synthetics":       {"base_price": 13,  "base_range": 0.35},
-        "Common Minerals":  {"base_price": 9,   "base_range": 0.60},
-        "Rare Minerals":    {"base_price": 40,  "base_range": 0.50},
-        "Refined Minerals": {"base_price": 20,  "base_range": 0.40},
-        "Essential Goods":  {"base_price": 22,  "base_range": 0.50},
-        "Medicine":         {"base_price": 30,  "base_range": 0.40},
-        "Vice Goods":       {"base_price": 30,  "base_range": 0.40},
-        "Technology Goods": {"base_price": 60,  "base_range": 0.30},
-        "Luxury Goods":     {"base_price": 150, "base_range": 0.25},
-        "Weapons":          {"base_price": 75,  "base_range": 0.33},
-        "Narcotics":        {"base_price": 300, "base_range": 0.45},
-        "Equipment Parts":  {"base_price": 90,  "base_range": 0.15},
-        "Fuel":             {"base_price": 10,  "base_range": 0.30},
-        "Ammunition":       {"base_price": 15,  "base_range": 0.20},
+        "Organics":         {"base_price": 17,  "base_range": 0.55, "volatility_price":3, "volatility_duration": 40},
+        "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1, "volatility_duration": 180},
+        "Common Minerals":  {"base_price": 9,   "base_range": 0.40, "volatility_price":2, "volatility_duration": 365},
+        "Rare Minerals":    {"base_price": 40,  "base_range": 0.60, "volatility_price":8, "volatility_duration": 100},
+        "Refined Minerals": {"base_price": 20,  "base_range": 0.40, "volatility_price":3, "volatility_duration": 200},
+        "Essential Goods":  {"base_price": 22,  "base_range": 0.50, "volatility_price":3, "volatility_duration": 50},
+        "Medicine":         {"base_price": 30,  "base_range": 0.40, "volatility_price":1, "volatility_duration": 200},
+        "Vice Goods":       {"base_price": 30,  "base_range": 0.40, "volatility_price":5, "volatility_duration": 40},
+        "Technology Goods": {"base_price": 60,  "base_range": 0.30, "volatility_price":4, "volatility_duration": 150},
+        "Luxury Goods":     {"base_price": 150, "base_range": 0.25, "volatility_price":30, "volatility_duration": 120},
+        "Weapons":          {"base_price": 75,  "base_range": 0.33, "volatility_price":10, "volatility_duration": 80},
+        "Narcotics":        {"base_price": 300, "base_range": 0.45, "volatility_price":50, "volatility_duration": 20},
+        "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3, "volatility_duration": 100},
+        "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1, "volatility_duration": 70},
+        "Ammunition":       {"base_price": 15,  "base_range": 0.20, "volatility_price":2, "volatility_duration": 80},
 }
 
 ILLEGAL_GOODS_BY_RACE = {

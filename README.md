@@ -34,6 +34,10 @@ Market:
 
 # Planned features
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
+- More realistic price fluctuations - substantial price changes at large random intervals of time.
+- Implement Volatility - how fast and frequently the price fluctuates.
+- Recession - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
+- Growth - Triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
