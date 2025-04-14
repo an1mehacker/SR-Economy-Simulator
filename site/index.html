@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Trade Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="page-title">
+        <h1>Galactic Trade Terminal</h1>
+    </header>
+
+    <div class="page-content-wrapper">
+
+        <div class="main-trade-container">
+            <div class="trade-area">
+                <div class="panel buy-panel">
+                    <h2><span class="icon">🛒</span> Buy Goods</h2>
+                    <div class="panel-content">
+                        <ul class="trade-list" id="buy-list">
+                            <li class="loading-placeholder">Loading market data...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="panel sell-panel">
+                    <h2><span class="icon">💰</span> Sell Goods</h2>
+                    <div class="panel-content">
+                        <ul class="trade-list" id="sell-list">
+                            <li class="loading-placeholder">Loading inventory...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-panel">
+            <h2><span class="icon">📋</span> Order Manifest</h2>
+            <div class="summary-content">
+                <div class="summary-section" id="buy-summary-section">
+                    <h3>Buying</h3>
+                    <ul class="summary-list" id="buy-summary-list">
+                        <li class="no-items">No items selected for purchase.</li>
+                    </ul>
+                    <div class="summary-totals" id="buy-summary-totals">
+                         <div class="total-line">
+                            <span class="label">Total Cost:</span>
+                            <span class="value currency" id="buy-total-cost">0 Cr</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-section" id="sell-summary-section">
+                    <h3>Selling</h3>
+                    <ul class="summary-list" id="sell-summary-list">
+                         <li class="no-items">No items selected for sale.</li>
+                    </ul>
+                    <div class="summary-totals" id="sell-summary-totals">
+                        <div class="total-line">
+                            <span class="label">Total Revenue:</span>
+                            <span class="value currency" id="sell-total-revenue">0 Cr</span>
+                        </div>
+                         <div class="total-line">
+                            <span class="label">Est. Profit:</span>
+                            <span class="value currency" id="sell-total-profit">0 Cr</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <button id="confirm-transaction" style="margin-top: 15px; width: 100%; padding: 12px;" disabled>Confirm Transaction (Disabled)</button>
+        </div>
+
+    </div> <script src="script.js"></script>
+
+</body>
+</html>

@@ -187,6 +187,7 @@ if __name__ == "__main__":
 
             days = SimulationStatus().days_elapsed - days
             for trade_good in TRADE_GOODS_DATA:
+                # TODO: Balance quantities shifted to order supplies
                 market.drift_prices(trade_good)
                 market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")

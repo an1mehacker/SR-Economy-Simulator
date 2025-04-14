@@ -876,13 +876,11 @@ class Market:
             raw_equilibrium = BASE_MULTIPLIER * (market_size / 1000) / base_price
 
             equilibrium = round(random.uniform(1 - VARIANCE, 1 + VARIANCE) * raw_equilibrium)
-            print(equilibrium)
             max_fluctuation = base_price / FlUCTUATION_FACTOR
             total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
             data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
             enterprise_amount = data["base_amount"] + data["politics"][political_system] + data["development"][development_type]
-            #print(f"{trade_good} : {enterprise_amount} enterprises")
 
             # TODO: Essential, Legal, Modifiers and Equilibrium need to be better defined by market conditions
             trade_status = TradeGoodStatus(False, True, max_fluctuation,

@@ -1,0 +1,579 @@
+/* --- Global Styles & Sci-Fi Theme --- */
+:root {
+    --bg-color: #0a0f18;
+    --panel-bg: #101828;
+    --border-color: #00aaff;
+    --text-color: #e0f2ff;
+    --accent-color: #00ffff;
+    --highlight-color: #ffffff;
+    --success-color: #00ff88;
+    --danger-color: #ff4466;
+    --slider-track: #334a6a;
+    --slider-thumb: var(--accent-color);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+     height: 100%;
+}
+
+body {
+    font-family: 'Orbitron', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
+    display: flex;
+    flex-direction: column; /* Stack title and content wrapper vertically */
+    align-items: center; /* Center content horizontally */
+    min-height: 100%;
+}
+
+h1, h2, h3 {
+    color: var(--accent-color);
+    text-shadow: 0 0 5px var(--accent-color);
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+
+button {
+    font-family: 'Orbitron', sans-serif;
+    background-color: var(--border-color);
+    color: var(--bg-color);
+    border: 1px solid transparent; /* Base border */
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    font-weight: bold;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(0, 170, 255, 0.5);
+}
+button:hover {
+    background-color: var(--accent-color);
+    box-shadow: 0 0 15px var(--accent-color);
+}
+button:disabled {
+    background-color: #555;
+    color: #aaa;
+    cursor: not-allowed;
+    box-shadow: none;
+    border-color: #444;
+}
+
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: var(--slider-track); outline: none; opacity: 0.9; transition: opacity .2s; border-radius: 4px; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background: var(--slider-thumb); border-radius: 50%; cursor: pointer; box-shadow: 0 0 5px var(--slider-thumb); }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; background: var(--slider-thumb); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 0 5px var(--slider-thumb); }
+input[type="range"]::-moz-range-track { background: var(--slider-track); height: 8px; border-radius: 4px; }
+
+.deal-good { color: var(--success-color); margin-left: 5px; }
+.deal-bad { color: var(--danger-color); margin-left: 5px; }
+.currency { color: var(--accent-color); font-weight: bold; }
+
+/* --- Layout Structure --- */
+
+/* Page Title Styling */
+.page-title {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 25px; /* Space below title */
+}
+.page-title h1 {
+     margin-bottom: 0; /* Reset margin if needed */
+}
+
+/* Wrapper for Trade Area + Summary Panel */
+.page-content-wrapper {
+    display: flex;
+    width: 95%; /* Overall width of the content area */
+    max-width: 1600px; /* Cap maximum width */
+    gap: 20px; /* Space between trade container and summary */
+    align-items: flex-start; /* Align tops */
+    flex-grow: 1; /* Allow wrapper to take available vertical space */
+}
+
+/* Container for the Buy/Sell Panels */
+.main-trade-container {
+   flex: 3 1 65%; /* Takes more space (Grow 3, Shrink 1, Basis 65%) */
+   display: flex; /* Use flex to make trade-area fill it */
+   min-width: 0; /* Prevent overflow */
+}
+
+/* Area containing the two trade panels */
+.trade-area {
+    flex: 1; /* Takes full width of main-trade-container */
+    display: flex;
+    gap: 20px;
+    min-width: 0; /* Prevent flex item overflow */
+    width: 100%;
+}
+
+/* Styling for individual Buy/Sell Panels */
+.panel {
+    flex: 1 1 50%; /* Share space equally within trade-area */
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-height: 85vh; /* Adjust as needed */
+    overflow: hidden;
+}
+
+.panel-content {
+     overflow-y: auto;
+     flex-grow: 1;
+     padding-right: 10px; /* Scrollbar space */
+}
+.panel-content::-webkit-scrollbar { width: 8px; }
+.panel-content::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
+.panel-content::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; border: 2px solid var(--bg-color); }
+.panel-content::-webkit-scrollbar-thumb:hover { background-color: var(--accent-color); }
+
+/* Summary Panel (Order Manifest) - Now a direct child of the wrapper */
+.summary-panel {
+    flex: 1 1 30%; /* Takes less space (Grow 1, Shrink 1, Basis 30%) */
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 75vh; /* Match panel height */
+    min-width: 280px; /* Prevent getting too crushed */
+}
+
+.summary-content {
+    overflow-y: auto;
+    flex-grow: 1;
+     padding-right: 10px; /* Scrollbar space */
+}
+.summary-content::-webkit-scrollbar { width: 8px; }
+.summary-content::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
+.summary-content::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; border: 2px solid var(--bg-color); }
+.summary-content::-webkit-scrollbar-thumb:hover { background-color: var(--accent-color); }
+
+
+/* --- Trade Item List Styling --- */
+.trade-list { list-style: none; padding: 0; margin: 0; }
+.trade-item { padding: 12px 10px; border-bottom: 1px dashed rgba(0, 170, 255, 0.3); cursor: pointer; transition: background-color 0.3s ease; position: relative; }
+.trade-item:last-child { border-bottom: none; }
+.trade-item:hover { background-color: rgba(0, 170, 255, 0.1); }
+.trade-item.active { background-color: rgba(0, 170, 255, 0.2); }
+
+.loading-placeholder,
+.no-items {
+    padding: 15px;
+    text-align: center;
+    color: var(--text-color);
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.item-header {
+    display: flex;
+    justify-content: flex-start; /* Align items to start */
+    align-items: center;
+    font-weight: bold;
+    flex-wrap: wrap;
+    gap: 8px; /* Adjust gap */
+}
+
+/* Icon Placeholder Styling */
+.item-icon-placeholder {
+    display: inline-block;
+    width: 24px; /* Adjust size */
+    height: 24px; /* Adjust size */
+    line-height: 24px; /* Center emoji vertically */
+    text-align: center;
+    font-size: 1.2em; /* Adjust icon size */
+    margin-right: 8px;
+}
+
+/* --- Placeholder Icons (Replace content later) --- */
+.item-icon-placeholder[data-item-name="Organics"]::before { content: '🌿'; }
+.item-icon-placeholder[data-item-name="Synthetics"]::before { content: '⚗️'; }
+.item-icon-placeholder[data-item-name="Common Minerals"]::before { content: '🪨'; }
+.item-icon-placeholder[data-item-name="Rare Minerals"]::before { content: '💎'; }
+.item-icon-placeholder[data-item-name="Refined Minerals"]::before { content: '⚙️'; }
+.item-icon-placeholder[data-item-name="Essential Goods"]::before { content: '🥫'; }
+.item-icon-placeholder[data-item-name="Medicine"]::before { content: '💊'; }
+.item-icon-placeholder[data-item-name="Vice Goods"]::before { content: '🍾'; }
+.item-icon-placeholder[data-item-name="Technology Goods"]::before { content: '💡'; }
+.item-icon-placeholder[data-item-name="Luxury Goods"]::before { content: '💍'; }
+.item-icon-placeholder[data-item-name="Weapons"]::before { content: '🔫'; }
+.item-icon-placeholder[data-item-name="Narcotics"]::before { content: '🍁'; }
+.item-icon-placeholder[data-item-name="Equipment Parts"]::before { content: '🔩'; }
+.item-icon-placeholder[data-item-name="Fuel"]::before { content: '⛽'; }
+.item-icon-placeholder[data-item-name="Ammunition"]::before { content: '💣'; }
+.item-icon-placeholder::before { content: '📦'; } /* Default */
+
+
+.item-name {
+    font-size: 1.1em;
+    color: var(--highlight-color);
+}
+
+.item-price-info {
+    font-size: 0.9em;
+    text-align: right;
+    color: var(--text-color);
+    white-space: nowrap;
+    margin-left: auto; /* Pushes this block to the right */
+}
+.item-price-info .label { color: var(--accent-color); font-size: 0.8em; }
+.item-details { font-size: 0.8em; color: #a0c0e0; margin-top: 4px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+/* Header Buttons Styling */
+.max-all-btn,
+.add-selected-btn {
+     padding: 2px 6px;
+     font-size: 0.8em;
+     border: 1px solid var(--border-color);
+     margin-left: 5px; /* Space between buttons */
+}
+
+.max-all-btn {
+     background-color: var(--slider-track);
+     color: var(--text-color);
+}
+.max-all-btn:hover {
+     background-color: var(--border-color);
+     color: var(--bg-color);
+ }
+
+.add-selected-btn {
+    background-color: var(--success-color); /* Use success color */
+    color: var(--bg-color);
+    border-color: var(--panel-bg);
+}
+.add-selected-btn:hover {
+    background-color: #00ffaa; /* Lighter success */
+    box-shadow: 0 0 8px var(--success-color);
+}
+
+/* --- Dropdown (Leaner) Styling --- */
+.dropdown {
+    display: none;
+    background-color: #0c1421;
+    border: 1px solid var(--accent-color);
+    border-radius: 0 0 5px 5px;
+    padding: 10px 15px; /* Reduced padding */
+    margin-top: 5px;dropdown-ite
+    z-index: 10;
+    box-shadow: 0 5px 15px rgba(0, 255, 255, 0.2);
+    animation: slideDown 0.3s ease-out forwards;
+    max-height: 600px;
+    overflow-y: auto;
+    max-width: 700px; /* Allow slightly wider dropdown */
+    margin-left: auto;
+    margin-right: auto;
+}
+.dropdown::-webkit-scrollbar { width: 6px; }
+.dropdown::-webkit-scrollbar-track { background: var(--panel-bg); border-radius: 3px; }
+.dropdown::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 3px; }
+.trade-item.active .dropdown { display: block; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+/* --- Dropdown Item New Layout --- */
+.dropdown-item {
+    padding: 10px 0; /* Vertical padding */
+    border-bottom: 1px solid rgba(0, 170, 255, 0.2);
+    display: grid;
+    /* Grid: Left Square | Middle Rect | Right Square */
+    grid-template-columns: 80px 1fr 80px; /* Adjust widths as needed */
+    gap: 15px; /* Gap between columns */
+    align-items: center; /* Vertically align content in columns */
+}
+.dropdown-item:last-child { border-bottom: none; }
+
+/* Column Styling */
+.dd-col-price,
+.dd-col-quantity {
+    font-size: 1.3em; /* Larger font */
+    font-weight: 700; /* Bold */
+    text-align: center;
+    color: var(--highlight-color);
+}
+.dd-col-price .currency { /* Ensure Cr symbol matches */
+     color: var(--highlight-color);
+     font-weight: 700;
+}
+
+.dd-col-main {
+    display: flex;
+    flex-direction: column; /* Stack name and controls */
+    gap: 5px; /* Space between name and controls */
+    min-width: 0; /* Prevent overflow in flex item */
+}
+
+.dd-main-name {
+    font-size: 0.8em; /* Smaller font size */
+    font-weight: 400; /* Normal weight */
+    color: var(--text-color);
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Add ellipsis if name is too long */
+}
+
+.dd-main-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Gap between control elements */
+}
+
+/* Control Element Styling */
+.dd-btn-minus,
+.dd-btn-plus {
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 0px 8px; /* Adjust padding */
+    line-height: 1.4; /* Adjust line height for vertical centering */
+    min-width: 28px;
+    background-color: var(--slider-track);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+.dd-btn-minus:hover,
+.dd-btn-plus:hover {
+    background-color: var(--border-color);
+    color: var(--bg-color);
+}
+
+.dd-slider { /* Target slider specifically if needed */
+    flex-grow: 1; /* Allow slider to take available space */
+    min-width: 80px; /* Ensure slider has some minimum width */
+}
+
+/* Adjust existing Max button within dropdown controls */
+.dd-main-controls .max-slider-btn {
+    font-size: 0.8em;
+    padding: 4px 8px; /* Keep padding */
+    margin-left: 10px; /* Increased distance from +/-/slider */
+    background-color: var(--slider-track);
+     color: var(--text-color);
+     border: 1px solid var(--border-color);
+     min-width: 45px; /* Increased min-width */
+     text-align: center; /* Ensure text is centered */
+     white-space: nowrap; /* Prevent wrapping */
+}
+.dd-main-controls .max-slider-btn:hover {
+    background-color: var(--border-color);
+     color: var(--bg-color);
+}
+
+/* Remove old wrapper classes if they conflict */
+.slider-wrapper, .button-wrapper { /* If these were used before */
+    /* Remove or adjust styles that might conflict */
+    /* display: contents; Or remove entirely if not needed */
+}
+
+
+/* --- Responsiveness Adjustments --- */
+@media (max-width: 768px) {
+     .dropdown-item {
+        /* Stack columns on mobile */
+        grid-template-columns: 1fr; /* Single column */
+        gap: 10px;
+        padding: 12px 5px;
+     }
+     /* Column Styling */
+    .dd-col-price {
+        /* Previous styles */
+        font-size: 1.3em;
+        font-weight: 700;
+        /* text-align: center; Replaced by flex */
+        color: var(--highlight-color);
+        /* New Flex styles */
+        display: flex;
+        justify-content: center; /* Center horizontally */
+        align-items: center; /* Center vertically */
+        gap: 5px; /* Space between price and indicator */
+    }
+    /* Ensure currency span inherits correctly */
+    .dd-col-price .currency {
+         color: inherit;
+         font-weight: inherit;
+    }
+    /* Ensure deal indicators have correct color */
+    .dd-col-price .deal-good { color: var(--success-color); }
+    .dd-col-price .deal-bad { color: var(--danger-color); }
+     .dd-col-quantity {
+         /* Maybe display inline with labels on mobile? Or stack */
+         text-align: left;
+         font-size: 1.1em;
+         display: flex; /* Arrange inline */
+         justify-content: space-between; /* Price/Qty on opposite sides */
+         width: 100%;
+         padding: 0 10px; /* Add some padding */
+     }
+     .dd-col-price::before {
+         content: 'Price: '; /* Add label back on mobile */
+         font-weight: normal;
+         color: var(--accent-color);
+         font-size: 0.8em;
+         margin-right: 5px;
+     }
+      .dd-col-quantity::before {
+         content: 'Selected: '; /* Add label back on mobile */
+         font-weight: normal;
+         color: var(--accent-color);
+         font-size: 0.8em;
+         margin-right: 5px;
+     }
+     .dd-col-main {
+         /* Order can be changed if needed */
+         order: -1; /* Move name/controls above price/qty */
+         gap: 8px;
+     }
+     .dd-main-controls {
+         justify-content: center; /* Center controls */
+         flex-wrap: wrap; /* Allow wrapping if needed */
+     }
+     .dd-main-controls .max-slider-btn {
+         margin-left: 0; /* Reset margin */
+     }
+}
+
+.slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-grow: 1; /* Allow slider to take space */
+    min-width: 120px; /* Min width for slider */
+    max-width: 180px; /* Max width for slider */
+}
+ .slider-wrapper input[type="range"] {
+     flex-grow: 1; /* Slider takes available space in wrapper */
+ }
+.slider-wrapper .quantity-display {
+    min-width: 25px; /* Adjust if needed */
+    text-align: right;
+    font-weight: bold;
+    color: var(--highlight-color);
+    font-size: 0.9em;
+}
+
+.button-wrapper {
+    display: flex;
+    gap: 6px;
+}
+
+.button-wrapper button {
+    padding: 4px 8px; /* Smaller buttons */
+    font-size: 0.8em;
+}
+ /* Specific style for Max button within dropdown */
+ .max-slider-btn {
+     background-color: var(--slider-track);
+     color: var(--text-color);
+     border: 1px solid var(--border-color);
+     min-width: 40px; /* Ensure 'Max' fits */
+ }
+ .max-slider-btn:hover {
+     background-color: var(--border-color);
+     color: var(--bg-color);
+ }
+
+
+/* --- Summary Panel Content Styling --- */
+.summary-section { margin-bottom: 20px; }
+.summary-section h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 10px; font-size: 1.1em; }
+.summary-list { list-style: none; padding: 0; margin-bottom: 15px; }
+.summary-item { padding: 5px 0; font-size: 0.9em; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px 10px; border-bottom: 1px dotted rgba(0, 170, 255, 0.2); }
+.summary-item:last-child { border-bottom: none; }
+.summary-item-details { flex-grow: 1; margin-right: 10px; }
+.summary-item-cost { min-width: 100px; text-align: right; white-space: nowrap; }
+.summary-totals { border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: auto; font-weight: bold; }
+.total-line { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.total-line .label { color: var(--accent-color); }
+.total-line .value { color: var(--highlight-color); }
+
+.summary-item-cost .margin-percent {
+    font-size: 0.85em;
+    margin-left: 5px;
+    opacity: 0.8;
+}
+/* Ensure profit class styling applies correctly */
+.summary-item-cost .deal-good { color: var(--success-color); }
+.summary-item-cost .deal-bad { color: var(--danger-color); }
+
+/* --- Responsiveness --- */
+/* Adjust for medium screens / tablets */
+@media (max-width: 1200px) {
+    .page-content-wrapper {
+        flex-direction: column; /* Stack trade container and summary */
+        width: 95%;
+         align-items: center; /* Center stacked items */
+    }
+    .main-trade-container {
+        flex-basis: auto; /* Reset basis */
+        width: 100%; /* Take full width when stacked */
+        margin-bottom: 20px; /* Add space below trade area when stacked */
+    }
+    .summary-panel {
+        flex-basis: auto; /* Reset basis */
+        width: 100%; /* Take full width when stacked */
+         max-width: 700px; /* Optional: Limit summary width when stacked */
+        min-width: unset; /* Reset min-width */
+    }
+     .panel, .summary-panel {
+         max-height: 55vh; /* Adjust height for stacked view */
+     }
+}
+
+/* Adjust for smaller screens / mobile */
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    .page-content-wrapper { width: 100%; gap: 15px; }
+     .main-trade-container { margin-bottom: 15px; }
+    .trade-area {
+        flex-direction: column; /* Stack Buy/Sell panels */
+        gap: 15px;
+    }
+     .panel, .summary-panel {
+         max-height: 45vh; /* Further adjust height */
+     }
+    .dropdown { max-width: 95%; }
+    .dropdown-item {
+        grid-template-columns: 1fr; /* Stack info and controls */
+        gap: 8px;
+    }
+    .dropdown-item-controls {
+        justify-content: center; /* Center controls when stacked */
+        width: 100%;
+    }
+     .slider-wrapper {
+        max-width: none; /* Allow slider to fill more space */
+    }
+    .item-header {
+        gap: 5px; /* Reduce gap */
+    }
+    .item-icon-placeholder {
+        width: 20px; height: 20px; line-height: 20px; font-size: 1em; margin-right: 5px;
+    }
+    .max-all-btn, .add-selected-btn {
+        margin-left: 5px;
+    }
+     .summary-item {
+         flex-direction: column;
+         align-items: flex-start;
+     }
+     .summary-item-cost {
+         text-align: left;
+         margin-top: 5px;
+     }
+    h1 { font-size: 1.5em; }
+    h2 { font-size: 1.2em; }
+}
