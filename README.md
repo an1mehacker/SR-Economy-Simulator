@@ -2,6 +2,8 @@ My attempt at creating a dynamic economy inspired by the game Space Rangers HD: 
 
 To use this project, run main.py and enter a desired amount for the market parameters
 
+Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Economy-Simulator/
+
 # Features
 - Buy from multiple Producers and trade goods at different prices and sell them with your bought items
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
@@ -36,8 +38,8 @@ Market:
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
 - More realistic price fluctuations - substantial price changes at large random intervals of time.
 - Implement Volatility - how fast and frequently the price fluctuates.
-- Recession - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
-- Growth - Triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
+- Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
+- Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status

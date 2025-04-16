@@ -297,12 +297,12 @@ function populateDropdown(listItem) {
         itemData.producers.forEach((producer, index) => {
             // Unique ID for elements related to this producer
             const producerId = `buy-${itemName.replace(/[^\w]/g, '')}-${index}`;
-
+            const dealIndicator = producer.price < basePrice * 0.9 ? '<span class="deal-good">▼</span>' : (producer.price > basePrice * 1.1 ? '<span class="deal-bad">▲</span>' : '');
             const div = document.createElement('div');
             div.classList.add('dropdown-item');
             div.innerHTML = `
                 <div class="dd-col-price">
-                    <span class="currency">${formatCurrency(producer.price)}</span>
+                    <span class="currency">${formatCurrency(producer.price)}${dealIndicator}</span>
                 </div>
 
                 <div class="dd-col-main">
@@ -327,8 +327,9 @@ function populateDropdown(listItem) {
                     </div>
                     <span id="label-${producerId}" style="display:none;">Quantity for ${producer.name}</span>
                 </div>
-                <div class="dd-col-quantity" id="qty-disp-${producerId}">
-                    0
+                <div class="dd-col-quantity">
+                    <div class="dd-qty-selected" id="qty-disp-${producerId}">0</div>
+                    <div class="dd-qty-total">/ ${producer.quantity.toLocaleString()}</div>
                 </div>
             `;
             dropdown.appendChild(div);
@@ -361,21 +362,20 @@ function populateDropdown(listItem) {
          inventoryStacks.forEach((stack, index) => {
               // Unique ID for elements related to this stack
               const stackId = `sell-${itemName.replace(/[^\w]/g, '')}-${index}`;
-
+              const dealIndicator = sellPrice > stack.purchasePrice ? '<span class="deal-good">▲</span>' : (sellPrice < stack.purchasePrice ? '<span class="deal-bad">▼</span>' : '');
               const div = document.createElement('div');
               div.classList.add('dropdown-item');
               // NOTE: For selling, the main price shown is the SELL price,
               // while the 'bought at' price could be shown small in the middle if desired.
               // Let's show SELL price big left.
               div.innerHTML = `
-                {/* Column 1: Sell Price */}
-                <div class="dd-col-price">
-                     <span class="currency">${formatCurrency(sellPrice)}</span>
+                <div class="dd-col-quantity">
+                     <span class="currency">${formatCurrency(sellPrice)}${dealIndicator}</span>
+                     <div class="dd-qty-total">${formatCurrency(stack.purchasePrice)}</div>
                 </div>
 
-                {/* Column 2: Main Info & Controls */}
                  <div class="dd-col-main">
-                     <div class="dd-main-name">Source: ${stack.producer} (Bought: ${formatCurrency(stack.purchasePrice)})</div>
+                     <div class="dd-main-name">by ${stack.producer}</div>
                      <div class="dd-main-controls">
                         <button class="dd-btn-minus" aria-label="Decrease quantity" data-target-slider="slider-${stackId}">-</button>
                         <button class="dd-btn-plus" aria-label="Increase quantity" data-target-slider="slider-${stackId}">+</button>
@@ -395,13 +395,12 @@ function populateDropdown(listItem) {
                             >
                         <button class="max-slider-btn" title="Set max quantity" data-target-slider="slider-${stackId}">Max</button>
                      </div>
-                     {/* Hidden label for accessibility */}
                     <span id="label-${stackId}" style="display:none;">Quantity for stack from ${stack.producer}</span>
                  </div>
 
-                 {/* Column 3: Quantity Display */}
-                 <div class="dd-col-quantity" id="qty-disp-${stackId}">
-                     0
+                 <div class="dd-col-quantity">
+                    <div class="dd-qty-selected" id="qty-disp-${stackId}">0</div>
+                    <div class="dd-qty-total">/ ${stack.quantity.toLocaleString()}</div>
                  </div>
             `;
              dropdown.appendChild(div);
@@ -608,12 +607,13 @@ function handleAddSelectedClick(event) {
 
 // --- Update Summary Panel ---
 function updateSummary() {
-    if (!buySummaryList || !sellSummaryList || !buyTotalCostEl || !sellTotalRevenueEl || !sellTotalProfitEl || !confirmButton) {
+    if (!buySummaryList || !sellSummaryList || !buyTotalCostEl || !sellTotalRevenueEl || !sellTotalProfitEl || !sellTotalMarginsEl || !confirmButton) {
         console.error("Summary panel elements not found!");
         return;
     }
 
     let totalBuyCost = 0;
+    let totalSellOriginalCost = 0;
     let totalSellRevenue = 0;
     let totalSellProfit = 0;
     let hasBuyItems = false;
@@ -642,13 +642,13 @@ function updateSummary() {
     for (const id in sellCart) {
         hasSellItems = true;
         const item = sellCart[id];
-         const profitClass = item.profit >= 0 ? 'deal-good' : 'deal-bad';
-         let marginText = '';
-         if (isFinite(item.marginPercent)) {
-             marginText = ` (${item.marginPercent >= 0 ? '+' : ''}${item.marginPercent.toFixed(1)}%)`;
-         } else if (item.profit > 0) {
-              marginText = ` (+Inf%)`; // Indicates profit with zero cost basis
-         }
+        const profitClass = item.profit >= 0 ? 'deal-good' : 'deal-bad';
+        let marginText = '';
+        if (isFinite(item.marginPercent)) {
+         marginText = ` (${item.marginPercent >= 0 ? '+' : ''}${item.marginPercent.toFixed(1)}%)`;
+        } else if (item.profit > 0) {
+          marginText = ` (+Inf%)`; // Indicates profit with zero cost basis
+        }
 
         const li = document.createElement('li');
         li.classList.add('summary-item');
@@ -662,13 +662,22 @@ function updateSummary() {
         sellSummaryList.appendChild(li);
         totalSellRevenue += item.revenue;
         totalSellProfit += item.profit;
+        totalSellOriginalCost += item.purchasePrice * item.quantity
     }
-     if (!hasSellItems) { sellSummaryList.innerHTML = '<li class="no-items">No items selected for sale.</li>'; }
-     sellTotalRevenueEl.textContent = formatCurrency(totalSellRevenue);
-     sellTotalProfitEl.textContent = formatCurrency(totalSellProfit);
-     // Use classList to manage profit color more safely
-     sellTotalProfitEl.classList.remove('deal-good', 'deal-bad'); // Clear previous classes
-     sellTotalProfitEl.classList.add(totalSellProfit >= 0 ? 'deal-good' : 'deal-bad');
+    if (!hasSellItems) { sellSummaryList.innerHTML = '<li class="no-items">No items selected for sale.</li>'; }
+
+    sellTotalRevenueEl.textContent = formatCurrency(totalSellRevenue);
+    console.log(totalSellRevenue + "-" + totalSellOriginalCost)
+    sellTotalProfitEl.textContent = formatCurrency(totalSellProfit);
+    sellTotalMarginsEl.textContent = ((totalSellRevenue - totalSellOriginalCost) / (totalSellOriginalCost != 0 ? totalSellOriginalCost : 1) * 100).toFixed(1) + '%'
+    // Use classList to manage profit color more safely
+    sellTotalProfitEl.classList.remove('deal-good', 'deal-bad'); // Clear previous classes
+    sellTotalMarginsEl.classList.remove('deal-good', 'deal-bad'); // Clear previous classes
+    
+    if (totalSellRevenue != 0) { 
+        sellTotalProfitEl.classList.add(totalSellProfit >= 0 ? 'deal-good' : 'deal-bad');
+        sellTotalMarginsEl.classList.add(totalSellProfit >= 0 ? 'deal-good' : 'deal-bad');
+    }
 
 
      // Enable/disable confirm button
@@ -711,6 +720,7 @@ function init() {
     buyTotalCostEl = document.getElementById('buy-total-cost');
     sellTotalRevenueEl = document.getElementById('sell-total-revenue');
     sellTotalProfitEl = document.getElementById('sell-total-profit');
+    sellTotalMarginsEl = document.getElementById('sell-total-margins');
     confirmButton = document.getElementById('confirm-transaction');
 
     // Ensure essential elements are present before proceeding

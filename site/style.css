@@ -73,9 +73,9 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance
 input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; background: var(--slider-thumb); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 0 5px var(--slider-thumb); }
 input[type="range"]::-moz-range-track { background: var(--slider-track); height: 8px; border-radius: 4px; }
 
-.deal-good { color: var(--success-color); margin-left: 5px; }
-.deal-bad { color: var(--danger-color); margin-left: 5px; }
 .currency { color: var(--accent-color); font-weight: bold; }
+.deal-good { color: var(--success-color) !important; margin-left: 5px; }
+.deal-bad { color: var(--danger-color) !important; margin-left: 5px; }
 
 /* --- Layout Structure --- */
 
@@ -315,6 +315,7 @@ input[type="range"]::-moz-range-track { background: var(--slider-track); height:
     flex-direction: column; /* Stack name and controls */
     gap: 5px; /* Space between name and controls */
     min-width: 0; /* Prevent overflow in flex item */
+    margin-left: 10px;
 }
 
 .dd-main-name {
@@ -379,6 +380,81 @@ input[type="range"]::-moz-range-track { background: var(--slider-track); height:
     /* display: contents; Or remove entirely if not needed */
 }
 
+/* --- Dropdown Item New Layout --- */
+/* ... other .dropdown-item styles ... */
+
+/* Column Styling */
+.dd-col-price {
+    /* Ensure flex styles are present for indicator alignment */
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    gap: 5px;
+    /* Font styles */
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--highlight-color);
+}
+.dd-col-price .currency { color: inherit; font-weight: inherit; }
+.dd-col-price .deal-good { color: var(--success-color); font-size: 0.8em; } /* Adjust size if needed */
+.dd-col-price .deal-bad { color: var(--danger-color); font-size: 0.8em; } /* Adjust size if needed */
+
+/* Right Quantity Column */
+.dd-col-quantity {
+    display: flex;
+    flex-direction: column; /* Stack selected and total */
+    align-items: center; /* Center horizontally */
+    justify-content: center; /* Center vertically */
+    gap: 0px; /* Adjust gap between selected/total if needed */
+    text-align: center; /* Fallback */
+}
+
+.dd-qty-selected {
+    font-size: 1.3em; /* Big bold font for selected */
+    font-weight: 700;
+    color: var(--highlight-color);
+    line-height: 1.1; /* Adjust line height */
+}
+
+.dd-qty-total {
+    font-size: 0.8em; /* Smaller font for total */
+    font-weight: 400;
+    color: var(--text-color);
+    opacity: 0.8;
+    line-height: 1.1; /* Adjust line height */
+}
+
+
+/* --- Responsiveness Adjustments --- */
+@media (max-width: 768px) {
+     /* ... other responsive rules ... */
+
+     .dd-col-price,
+     .dd-col-quantity {
+         /* Adjust mobile layout if needed */
+         text-align: center; /* Keep centered */
+         font-size: 1.1em;
+         display: flex;
+         flex-direction: row; /* Put back inline for mobile? */
+         flex-wrap: wrap; /* Allow wrapping */
+         justify-content: center;
+         align-items: baseline; /* Align text baselines */
+         width: auto; /* Don't force width */
+         padding: 0;
+     }
+     .dd-col-price::before,
+     .dd-col-quantity::before {
+          /* Remove labels added previously for mobile */
+         content: none;
+     }
+     /* Keep quantity split on mobile */
+     .dd-col-quantity {
+         flex-direction: column; /* Keep stacked on mobile */
+         align-items: center;
+     }
+
+}
+
 
 /* --- Responsiveness Adjustments --- */
 @media (max-width: 768px) {
@@ -399,7 +475,7 @@ input[type="range"]::-moz-range-track { background: var(--slider-track); height:
         display: flex;
         justify-content: center; /* Center horizontally */
         align-items: center; /* Center vertically */
-        gap: 5px; /* Space between price and indicator */
+        gap: 7px; /* Space between price and indicator */
     }
     /* Ensure currency span inherits correctly */
     .dd-col-price .currency {
