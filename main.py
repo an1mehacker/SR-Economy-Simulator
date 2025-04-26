@@ -1,5 +1,19 @@
 from market import *
 from math2 import clamp
+from collections import defaultdict
+
+def regroup_trade_good_statuses(list_of_markets):
+    """
+    :param list_of_markets: list of Market instances, each with a .trade_good_status dict {trade_good_name: MarketGoodStatus}
+    :return: dict {trade_good_name: list of MarketGoodStatus across all markets}
+    """
+    regrouped = defaultdict(list)
+
+    for m in list_of_markets:
+        for t, status in m.trade_good_status.items():
+            regrouped[t].append(status)
+
+    return dict(regrouped)
 
 def parse_command():
     processed_input = input("> ").strip().lower()
@@ -70,6 +84,9 @@ if __name__ == "__main__":
     simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
+    market_names = ["Earth", "Phedok", "Gaaldok", "Eipentak", "Ramgatroo"]
+    markets = []
+
     political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy"]
     development_types = ["Agrarian", "Mixed", "Industrial"]
 
@@ -78,7 +95,14 @@ if __name__ == "__main__":
     development_type = "Mixed"
     print(market_size)
 
+
     market = Market.generate_market("Planet", market_size, development_score, political_system, development_type)
+
+    for name in market_names:
+        markets.append(Market.generate_market(name, market_size, development_score, political_system, development_type))
+
+    markets.append(market)
+
     user = Actor(10000)
     market.summary_listing(tg)
     print("\nType help for complete list of commands\n")
@@ -185,9 +209,12 @@ if __name__ == "__main__":
             else:
                 SimulationStatus().skip_day()
 
+            statuses = regroup_trade_good_statuses(markets)
             days = SimulationStatus().days_elapsed - days
             for trade_good in TRADE_GOODS_DATA:
                 # TODO: Balance quantities shifted to order supplies
+                SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
+                print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
                 market.drift_prices(trade_good)
                 market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")

@@ -12,6 +12,7 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 - Passage of Time - Prices rise and fall over time towards a new price when supply is affected, fluctuate over time and grow to reflect a rising inflation
 - Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
 - Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
+- Realistic Price fluctuations based on global markets and volatility speeds that are different for each trade good
 
 Here's an example use
 ![](images/pic1.png?)
@@ -36,9 +37,6 @@ Market:
 
 # Planned features
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
-- More realistic price fluctuations - substantial price changes at large random intervals of time.
-- Global price fluctuations instead of per market that's based on the amount of shortages and surpluses currently available
-- Implement Volatility - how fast and frequently the price fluctuates.
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
 - In addition to Enterprise Producers, add many smaller in quantity Individual Producers

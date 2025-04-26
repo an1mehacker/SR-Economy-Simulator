@@ -1,7 +1,8 @@
 ﻿import math
 import random
+from platform import python_revision
 
-from math2 import lerp, clamp, map_range_clamped
+from math2 import *
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -84,21 +85,21 @@ TRADE_GOOD_ENTERPRISE_RULES = {
 }
 
 TRADE_GOODS_DATA = {
-        "Organics":         {"base_price": 17,  "base_range": 0.55, "volatility_price":3, "volatility_duration": 40},
-        "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1, "volatility_duration": 180},
-        "Common Minerals":  {"base_price": 9,   "base_range": 0.40, "volatility_price":2, "volatility_duration": 365},
-        "Rare Minerals":    {"base_price": 40,  "base_range": 0.60, "volatility_price":8, "volatility_duration": 100},
-        "Refined Minerals": {"base_price": 20,  "base_range": 0.40, "volatility_price":3, "volatility_duration": 200},
-        "Essential Goods":  {"base_price": 22,  "base_range": 0.50, "volatility_price":3, "volatility_duration": 50},
-        "Medicine":         {"base_price": 30,  "base_range": 0.40, "volatility_price":1, "volatility_duration": 200},
-        "Vice Goods":       {"base_price": 30,  "base_range": 0.40, "volatility_price":5, "volatility_duration": 40},
-        "Technology Goods": {"base_price": 60,  "base_range": 0.30, "volatility_price":4, "volatility_duration": 150},
-        "Luxury Goods":     {"base_price": 150, "base_range": 0.25, "volatility_price":30, "volatility_duration": 120},
-        "Weapons":          {"base_price": 75,  "base_range": 0.33, "volatility_price":10, "volatility_duration": 80},
-        "Narcotics":        {"base_price": 300, "base_range": 0.45, "volatility_price":50, "volatility_duration": 20},
-        "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3, "volatility_duration": 100},
-        "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1, "volatility_duration": 70},
-        "Ammunition":       {"base_price": 15,  "base_range": 0.20, "volatility_price":2, "volatility_duration": 80},
+        "Organics":         {"base_price": 17,  "base_range": 0.55, "volatility_price":3,  "volatility_duration": 10},
+        "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 45},
+        "Common Minerals":  {"base_price": 9,   "base_range": 0.40, "volatility_price":2,  "volatility_duration": 90},
+        "Rare Minerals":    {"base_price": 40,  "base_range": 0.60, "volatility_price":8,  "volatility_duration": 25},
+        "Refined Minerals": {"base_price": 20,  "base_range": 0.40, "volatility_price":3,  "volatility_duration": 50},
+        "Essential Goods":  {"base_price": 22,  "base_range": 0.50, "volatility_price":3,  "volatility_duration": 12},
+        "Medicine":         {"base_price": 30,  "base_range": 0.40, "volatility_price":1,  "volatility_duration": 50},
+        "Vice Goods":       {"base_price": 30,  "base_range": 0.40, "volatility_price":5,  "volatility_duration": 10},
+        "Technology Goods": {"base_price": 60,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 35},
+        "Luxury Goods":     {"base_price": 150, "base_range": 0.25, "volatility_price":30, "volatility_duration": 30},
+        "Weapons":          {"base_price": 75,  "base_range": 0.33, "volatility_price":10, "volatility_duration": 20},
+        "Narcotics":        {"base_price": 300, "base_range": 0.45, "volatility_price":50, "volatility_duration": 5},
+        "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3,  "volatility_duration": 25},
+        "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1,  "volatility_duration": 15},
+        "Ammunition":       {"base_price": 15,  "base_range": 0.20, "volatility_price":2,  "volatility_duration": 20},
 }
 
 ILLEGAL_GOODS_BY_RACE = {
@@ -146,8 +147,13 @@ class SimulationStatus(object):
         self.trade_difficulty_multiplier = 1.0
         self.inflation = 1.0
         self.days_elapsed = 0
-        self.global_trade_good_status = {
+        self.trade_difficulty_status = {
             key: {"price_range": value["base_range"]}
+            for key, value in TRADE_GOODS_DATA.items()
+        }
+
+        self.global_good_status = {
+            key: GlobalGoodStatus(value["volatility_price"], value["volatility_duration"])
             for key, value in TRADE_GOODS_DATA.items()
         }
 
@@ -172,12 +178,12 @@ class SimulationStatus(object):
 
         SimulationStatus().trade_difficulty_multiplier = map_range_clamped(trade_difficulty, min_difficulty,max_difficulty, 1.0,max_difficulty_penalty)
 
-        for trade_good in self.global_trade_good_status:
+        for trade_good in self.trade_difficulty_status:
             # higher trade difficulties (value from 1 to 10) = lower profit margins
-            base_range = self.global_trade_good_status[trade_good]["price_range"]
+            base_range = self.trade_difficulty_status[trade_good]["price_range"]
 
             # in essence, this is a sliding value from max_difficulty_penalty to 1.0 based on the trade difficulty selected
-            self.global_trade_good_status[trade_good]["price_range"] = base_range * self.trade_difficulty_multiplier
+            self.trade_difficulty_status[trade_good]["price_range"] = base_range * self.trade_difficulty_multiplier
 
 
 @dataclass
@@ -299,16 +305,14 @@ def is_legal(trade_good, race, political_system):
 #is_legal("Vice Goods", "Maloq", "Democracy")  # ➝ False
 #is_legal("Weapons", "Peleng", "Anarchy")      # ➝ True
 
-class TradeGoodStatus:
-    def __init__(self, essential : bool, legality : bool, max_fluctuation, buy_modifiers, sell_modifiers,
+class MarketGoodStatus:
+    def __init__(self, essential : bool, legality : bool, buy_modifiers, sell_modifiers,
                  equilibrium_quantity, total_supply, enterprise_amount):
         """
-        A status for a trade good that applies to an entire market
+        A status for a trade good that applies to a single market
 
         :param essential: 'Non-Essential' or 'Essential'
         :param legality: 'Legal' or 'Illegal'
-        :param max_fluctuation: flat float value. this determines daily fluctuation which is -max_fluctation to +max_fluctuation.
-        this value is added at the end of price calculation to all orders
         :param buy_modifiers: dict of key: Producer, value: additive float bonus like 0.7 -30% when buying
         :param sell_modifiers: same but for selling.
         :param equilibrium_quantity: the total quantity at which the price becomes base price. this value influences
@@ -316,9 +320,6 @@ class TradeGoodStatus:
         """
         self.essential = essential
         self.legality = legality
-        self.max_fluctuation = max_fluctuation
-        self.daily_fluctuation = 0
-        self.calculate_new_daily_fluctuation()
         self.buy_modifiers = buy_modifiers
         self.sell_modifiers = sell_modifiers
         self.equilibrium_quantity = equilibrium_quantity
@@ -336,19 +337,57 @@ class TradeGoodStatus:
 
         self.situation = "Idk"
 
-    def calculate_new_daily_fluctuation(self):
-        max_step = self.max_fluctuation / 3
-        delta = random.uniform(-max_step, max_step)
+class GlobalGoodStatus:
+    def __init__(self, max_fluctuation, volatility_duration):
+        """
+        A status that applies to the entire simulation
 
-        # If fluctuation is at a boundary, flip delta to stay in range
-        if self.daily_fluctuation == -self.max_fluctuation and delta < 0:
-            delta *= -1
-        elif self.daily_fluctuation == self.max_fluctuation and delta > 0:
-            delta *= -1
+        :param max_fluctuation: flat float value. this determines daily fluctuation which is -max_fluctation to +max_fluctuation.
+        this value is added at the end of price calculation to all orders
+        :param volatility_duration: how often to recalculate the new target fluctuation
+        """
+        self.max_fluctuation = max_fluctuation
+        self.current_fluctuation = 0
+        self.volatility_duration = volatility_duration
+        self.volatility_timer = volatility_duration # reset to 0, otherwise this is just for testing purposes
+        self.previous_fluctuation = 0
+        self.target_fluctuation = 0
 
-        self.daily_fluctuation += delta
+    def __repr__(self):
+        return f"Max:{self.max_fluctuation} - Duration:{self.volatility_duration}"
 
-        self.daily_fluctuation = clamp(self.daily_fluctuation, -self.max_fluctuation, self.max_fluctuation)
+    def calculate_daily_fluctuation(self, statuses : List[MarketGoodStatus]):
+        """
+        :param statuses - list of all trade good statuses across every market
+        """
+        self.volatility_timer += 1
+
+        if self.volatility_timer >= self.volatility_duration:
+            self.volatility_timer = 0
+
+            # Calculate percentage of list_of_markets in surplus/deficit
+            deficit_count = 0
+            surplus_count = 0
+            for status in statuses:
+                if status.situation.lower().find("deficit"):
+                    deficit_count += 1
+                if status.situation.lower().find("surplus"):
+                    surplus_count += 1
+
+            total_markets = len(statuses)
+
+            deficit_ratio = deficit_count / total_markets
+            surplus_ratio = surplus_count / total_markets
+
+            # Positive if deficit (price rises), Negative if surplus (price falls), naturally clamped to -1 to 1
+            net_ratio = deficit_ratio - surplus_ratio
+
+            self.target_fluctuation = net_ratio * self.max_fluctuation
+            self.previous_fluctuation = self.current_fluctuation
+
+        if random.random() < 0.5:
+            new_fluctuation = lerp(self.previous_fluctuation, self.target_fluctuation, self.volatility_timer / self.volatility_duration)
+            self.current_fluctuation = clamp(new_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
 def calculate_buy_price_logistic(floor, ceil, supply_ratio, buy_k=0.95):
     """
@@ -468,17 +507,16 @@ def get_breakpoint_quantities(equilibrium, after_supply, before_supply=100000000
     return breakpoints
 
 
-def calculate_final_price(inflation, base_price, price_point, daily_fluctuation, bonus, min_price=100000000) -> int:
-    return round(min(inflation * base_price * price_point + daily_fluctuation, min_price) * bonus)
-
+def calculate_final_price(inflation, base_price, price_point, current_fluctuation, bonus, min_price=100000000) -> int:
+    return round(min(inflation * base_price * price_point + (current_fluctuation * inflation), min_price) * bonus)
 
 class Market:
     def __init__(self, market_name, market_size, development_score, trade_good_status):
         """
 
         :param market_name: string - name of the market like the planet or station's name
-        :param development_score: a global price modifier, goods are more expensive in highly developed markets
-        :param trade_good_status: list of TradeGoodStatus
+        :param development_score: a global price modifier, goods are more expensive in highly developed list_of_markets
+        :param trade_good_status: list of MarketGoodStatus
         """
         self.name = market_name
         self.market_size = market_size
@@ -557,22 +595,19 @@ class Market:
         return amount
 
     def simulate_buy_price(self, trade_good, new_supply_ratio, order_index) -> int:
-        status = self.trade_good_status[trade_good]
-
         order = self.buy_orders[trade_good][order_index]
         price_point = self.calculate_buy_price_point(order, trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                      SimulationStatus().global_trade_good_status[trade_good]["base_price"],
-                                      price_point, status.daily_fluctuation,
-                                      self.get_buy_price_bonus(order, trade_good))
+                                     SimulationStatus().trade_difficulty_status[trade_good]["base_price"],
+                                     price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
+                                     self.get_buy_price_bonus(order, trade_good))
 
     def simulate_sell_price(self, trade_good, new_supply_ratio, item : Item) -> int:
-        status = self.trade_good_status[trade_good]
         price_point = self.calculate_sell_price_point(trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                      SimulationStatus().global_trade_good_status[trade_good]["base_price"],
-                                      price_point, status.daily_fluctuation,
-                                      self.get_sell_price_bonus(item, trade_good))
+                                     SimulationStatus().trade_difficulty_status[trade_good]["base_price"],
+                                     price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
+                                     self.get_sell_price_bonus(item, trade_good))
 
     def recalculate_prices(self, trade_good, operation="Buy", breakpoint_recalculate=True):
         if len(self.buy_orders[trade_good]) == 0:
@@ -776,14 +811,14 @@ class Market:
         return calculate_final_price(SimulationStatus().inflation,
                                      TRADE_GOODS_DATA[trade_good]["base_price"],
                                      order_listing.price_point,
-                                     self.trade_good_status[trade_good].daily_fluctuation,
+                                     SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_buy_price_bonus(order_listing, trade_good))
 
     def get_sell_price_by_order(self, sell_order, trade_good, min_buy_price) -> int:
         return calculate_final_price(SimulationStatus().inflation,
                                      TRADE_GOODS_DATA[trade_good]["base_price"],
                                      sell_order.price_point,
-                                     self.trade_good_status[trade_good].daily_fluctuation,
+                                     SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_sell_price_bonus(None, trade_good),
                                      min_buy_price)
 
@@ -794,7 +829,7 @@ class Market:
         if trade_good not in TRADE_GOODS_DATA.keys():
             return -1
 
-        base_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
+        base_range = SimulationStatus().trade_difficulty_status[trade_good]["price_range"]
         status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
@@ -829,7 +864,7 @@ class Market:
         if trade_good not in TRADE_GOODS_DATA.keys():
             return -1
 
-        base_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
+        base_range = SimulationStatus().trade_difficulty_status[trade_good]["price_range"]
         status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
@@ -867,7 +902,6 @@ class Market:
     def generate_market(market_name, market_size, development_score, political_system, development_type):
         BASE_MULTIPLIER = 20000
         VARIANCE = 0.5
-        FlUCTUATION_FACTOR = 20
 
         statuses = {}
 
@@ -876,15 +910,13 @@ class Market:
             raw_equilibrium = BASE_MULTIPLIER * (market_size / 1000) / base_price
 
             equilibrium = round(random.uniform(1 - VARIANCE, 1 + VARIANCE) * raw_equilibrium)
-            max_fluctuation = base_price / FlUCTUATION_FACTOR
             total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
             data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
             enterprise_amount = data["base_amount"] + data["politics"][political_system] + data["development"][development_type]
 
             # TODO: Essential, Legal, Modifiers and Equilibrium need to be better defined by market conditions
-            trade_status = TradeGoodStatus(False, True, max_fluctuation,
-                                            [], [], equilibrium, total_supply, enterprise_amount)
+            trade_status = MarketGoodStatus(False, True, [], [], equilibrium, total_supply, enterprise_amount)
             statuses[trade_good] = trade_status
 
         temp = Market(market_name, market_size, development_score, statuses)
@@ -947,7 +979,7 @@ class Market:
         enterprise_amount = len(buy_orders)
         names = [order.producer.name for order in buy_orders]
 
-        price_range = SimulationStatus().global_trade_good_status[trade_good]["price_range"]
+        price_range = SimulationStatus().trade_difficulty_status[trade_good]["price_range"]
         floor, ceil = 1 - price_range, 1 + price_range
 
         #max_sell_final_price = min([order.calculated_price for order in buy_orders]) - 1
@@ -957,7 +989,7 @@ class Market:
             print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(status.buy_price * self.development_score, 2)} "
                   f"{round(status.sell_price * self.development_score, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
                   f"| Supply Ratio: {status.total_supply / status.equilibrium_quantity} "
-                  f"| Today's Fluctuation: {round(status.daily_fluctuation, 2)}")
+                  f"| Today's Fluctuation: {round(SimulationStatus().global_good_status[trade_good].current_fluctuation, 2)}")
 
         print()
         print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")

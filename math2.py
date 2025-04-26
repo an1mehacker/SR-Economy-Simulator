@@ -29,3 +29,6 @@ def map_range_clamped(value, in_min, in_max, out_min, out_max):
 
     # Normalize and map the value to the output range
     return out_min + (clamped_value - in_min) * (out_max - out_min) / (in_max - in_min)
+
+def sign(value) -> float:
+    return 1.0 if value >= 0 else -1.0
