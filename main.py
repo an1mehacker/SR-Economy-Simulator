@@ -172,8 +172,10 @@ if __name__ == "__main__":
                 command, params = parse_command()
                 continue
 
+            sell_amount = min(sell_amount, quantity)
+
             item = user.items[item_index]
-            item = market.sell(tg, item, quantity) # returns the amount of items that were sold
+            item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
 
             user.remove_item(item)
             if len(item.breakdown_prices) == 1:
@@ -211,10 +213,14 @@ if __name__ == "__main__":
 
             statuses = regroup_trade_good_statuses(markets)
             days = SimulationStatus().days_elapsed - days
+
+            # for market in markets:
+            market.balance_quantities_sell()
             for trade_good in TRADE_GOODS_DATA:
-                # TODO: Balance quantities shifted to order supplies
                 SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
                 print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
+
+                market.balance_quantities(trade_good)
                 market.drift_prices(trade_good)
                 market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")

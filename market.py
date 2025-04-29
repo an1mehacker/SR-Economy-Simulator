@@ -189,7 +189,7 @@ class SimulationStatus(object):
 @dataclass
 class Producer:
     """
-    :param producer_type: "Enterprise" or "Individual"
+    :param producer_type: "Interstellar" or "Enterprise" or "Individual"
     :param name: name of the enterprise like Technology Inc. or if individual John Smith
     """
     producer_type: str
@@ -340,7 +340,7 @@ class MarketGoodStatus:
 class GlobalGoodStatus:
     def __init__(self, max_fluctuation, volatility_duration):
         """
-        A status that applies to the entire simulation
+        A status that applies to the entire simulation, primarily through price fluctuations
 
         :param max_fluctuation: flat float value. this determines daily fluctuation which is -max_fluctation to +max_fluctuation.
         this value is added at the end of price calculation to all orders
@@ -354,10 +354,14 @@ class GlobalGoodStatus:
         self.target_fluctuation = 0
 
     def __repr__(self):
-        return f"Max:{self.max_fluctuation} - Duration:{self.volatility_duration}"
+        return f"Current: {self.current_fluctuation} - Max:{self.max_fluctuation} - Duration:{self.volatility_duration}"
 
     def calculate_daily_fluctuation(self, statuses : List[MarketGoodStatus]):
         """
+        Shifts price fluctuation whether the global economy of that particular trade good is in mostly deficit or surplus
+
+        TODO: Add some variation to the fluctuation so that it's not entirely deterministic
+
         :param statuses - list of all trade good statuses across every market
         """
         self.volatility_timer += 1
@@ -539,6 +543,24 @@ class Market:
             for key in TRADE_GOODS_DATA.keys()
         }
 
+    def balance_quantities_sell(self):
+        balance_factor = 0.3
+
+        for trade_good in TRADE_GOODS_DATA:
+            order = self.sell_order[trade_good]
+            amount_to_shift = min(max(round(order.balance_quantity * balance_factor),3), order.balance_quantity)
+            order.balance_quantity -= amount_to_shift
+            order.quantity += amount_to_shift
+
+    def balance_quantities(self, trade_good):
+        balance_factor = 0.2
+
+        for order in self.buy_orders[trade_good]:
+            # balance quantities by 20% or 2 whichever is higher until it empties out
+            amount_to_shift = min(max(round(order.balance_quantity * balance_factor),2), order.balance_quantity)
+            order.balance_quantity -= amount_to_shift
+            order.quantity += amount_to_shift
+
     def drift_prices(self, trade_good):
         # doesn't actually change prices but sets it up when the prices recalculate
         drift_factor = 0.1
@@ -648,8 +670,8 @@ class Market:
 
     def get_bracketed_set(self, trade_good, operation, before_total, before_cost, quantity_operated, order_index=-1, item=None):
         status = self.trade_good_status[trade_good]
-        last_supply = status.last_buy_supply if operation == "Buy" else status.last_sell_supply
-        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, last_supply)
+        #last_supply = status.last_buy_supply if operation == "Buy" else status.last_sell_supply
+        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_total)
 
         if breakpoints:
             breakpoint_total = before_total
@@ -787,13 +809,17 @@ class Market:
         self.distribute_goods(trade_good,before_total, self.trade_good_status[trade_good].total_supply)
         self.update_available_supply(trade_good)
 
-        # bug: when it exactly reaches a breakpoint, it incorrectly triggers a recalculation
         order_breakpoint_quantities, order_breakpoint_prices, total_price = self.get_bracketed_set(
             trade_good, "Sell", before_total, before_cost, quantity_operated, -1, item)
 
         if not order_breakpoint_quantities:
             order_breakpoint_quantities = [quantity_operated]
             order_breakpoint_prices = [before_cost]
+
+        if quantity_operated == 0:
+            # wtf happened idk
+            # some bug when it returns only 50 units, doesn't remove items from your inventory but adds to total supply
+            print(f"OrderQ:{order.quantity}, ItemQ: {item.total_quantity}, Breakdown:{list(zip(order_breakpoint_quantities, order_breakpoint_prices))}, Price:{total_price}")
 
         return Item(trade_good, quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, item.producer)
 
@@ -1023,7 +1049,7 @@ class Market:
 
         print()
         print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
-        print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr")
+        print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr | Balance quantity (x{sell_order.balance_quantity})")
 
         # TODO List selling bonuses here and user items. ALSO FIX WRONG ITEM DISPLAY
 

@@ -12,7 +12,7 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 - Passage of Time - Prices rise and fall over time towards a new price when supply is affected, fluctuate over time and grow to reflect a rising inflation
 - Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
 - Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
-- Realistic Price fluctuations based on global markets and volatility speeds that are different for each trade good
+- Realistic Price fluctuations based on the global market conditions and volatility speeds that are different for each trade good
 
 Here's an example use
 ![](images/pic1.png?)
