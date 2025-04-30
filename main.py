@@ -27,7 +27,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -84,7 +84,6 @@ if __name__ == "__main__":
     simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
-    market_names = ["Earth", "Phedok", "Gaaldok", "Eipentak", "Ramgatroo"]
     markets = []
 
     political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy"]
@@ -93,18 +92,18 @@ if __name__ == "__main__":
     tg = "Technology Goods"
     political_system = "Democracy"
     development_type = "Mixed"
-    print(market_size)
 
 
-    market = Market.generate_market("Planet", market_size, development_score, political_system, development_type)
-
-    for name in market_names:
-        markets.append(Market.generate_market(name, market_size, development_score, political_system, development_type))
+    market = Market.generate_market("Earth", "Human", market_size, development_score, political_system, development_type)
+    markets.append(Market.generate_market("Phedok", "Peleng", 1100, 0.9, "Republic", "Mixed"))
+    markets.append(Market.generate_market("Gaaldok", "Gaalian", 1200, 1.1, "Monarchy", "Industrial"))
+    markets.append(Market.generate_market("Eypentak", "Faeyan", 1100, 1.2, "Republic", "Industrial"))
+    markets.append(Market.generate_market("Ramgatru", "Maloq", 1100, 0.9, "Dictatorship", "Mixed"))
 
     markets.append(market)
 
     user = Actor(10000)
-    market.summary_listing(tg)
+    market.market_listing(tg)
     print("\nType help for complete list of commands\n")
     command, params = parse_command()
 
@@ -202,7 +201,11 @@ if __name__ == "__main__":
             print("Not implemented.")
 
         if command == "h":
-            market.summary_listing(tg)
+            market.market_listing(tg)
+
+        if command == "m":
+            for i, market in enumerate(markets):
+                print(f"{i+1} - {market.short_listing()}")
 
         if command == "w":
             days = SimulationStatus().days_elapsed

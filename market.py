@@ -515,7 +515,7 @@ def calculate_final_price(inflation, base_price, price_point, current_fluctuatio
     return round(min(inflation * base_price * price_point + (current_fluctuation * inflation), min_price) * bonus)
 
 class Market:
-    def __init__(self, market_name, market_size, development_score, trade_good_status):
+    def __init__(self, market_name, race, market_size, development_score, trade_good_status):
         """
 
         :param market_name: string - name of the market like the planet or station's name
@@ -523,6 +523,7 @@ class Market:
         :param trade_good_status: list of MarketGoodStatus
         """
         self.name = market_name
+        self.race = race
         self.market_size = market_size
         self.development_score = development_score
         self.trade_good_status = trade_good_status
@@ -925,7 +926,7 @@ class Market:
         return sell_price * sell_ratio, generic_buy_price
 
     @staticmethod
-    def generate_market(market_name, market_size, development_score, political_system, development_type):
+    def generate_market(market_name, race, market_size, development_score, political_system, development_type):
         BASE_MULTIPLIER = 20000
         VARIANCE = 0.5
 
@@ -939,13 +940,13 @@ class Market:
             total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
             data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
-            enterprise_amount = data["base_amount"] + data["politics"][political_system] + data["development"][development_type]
+            enterprise_amount = max(int(data["base_amount"] + data["politics"][political_system] + data["development"][development_type]), 1)
 
             # TODO: Essential, Legal, Modifiers and Equilibrium need to be better defined by market conditions
             trade_status = MarketGoodStatus(False, True, [], [], equilibrium, total_supply, enterprise_amount)
             statuses[trade_good] = trade_status
 
-        temp = Market(market_name, market_size, development_score, statuses)
+        temp = Market(market_name, race, market_size, development_score, statuses)
 
         for trade_good in TRADE_GOODS_DATA.keys():
             temp.generate_new_orders(trade_good)
@@ -1067,9 +1068,12 @@ class Market:
             f"{bracketed_pricing(status.equilibrium_quantity)[1] - abs(min(0, status.available_supply))} "
             f"| Total: {status.total_supply}")
 
+    def short_listing(self):
+        return f"{self.name} - Size: {self.market_size} - Development: {self.development_score}x"
 
+    def market_listing(self, tg):
+        print(self.short_listing())
 
-    def summary_listing(self, tg):
         for i, trade_good in enumerate(self.buy_orders.keys()):
             status = self.trade_good_status[trade_good]
             buy_orders = self.buy_orders[trade_good]
@@ -1091,4 +1095,5 @@ class Market:
 
             print(f"{str(i + 1) + "." + (" >" if selected else ""):<5} {trade_good + (" <" if selected else ""):<20} - "
                   f"Buy (x{status.available_supply:<5}) at ~{buy_weighted_average_price:<6} from {status.enterprise_amount} enterprises"
-                  f" |   Sell (x{sell_order.quantity:<5}) at {sell_order.calculated_price:>4}cr")
+                  f" | Sell (x{sell_order.quantity:<5}) at {sell_order.calculated_price:>4}cr"
+                  f" | Situation: {status.situation:<13} | Legal: {"Yes" if status.legality else "No"}")
