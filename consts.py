@@ -20,82 +20,82 @@
 TRADE_GOOD_ENTERPRISE_RULES = {
     "Organics": {
         "base_amount": 4,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": 2, "Mixed": 0, "Industrial": -1},
     },
     "Synthetics": {
         "base_amount": 3,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
         "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 1},
     },
     "Common Minerals": {
         "base_amount": 5,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 1},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 1, "Theocracy":1},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
     },
     "Rare Minerals": {
         "base_amount": 2,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 1},
     },
     "Refined Minerals": {
         "base_amount": 3,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Essential Goods": {
         "base_amount": 5,
-        "politics": {"Democracy": 1, "Republic": 2, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 1, "Republic": 2, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
     },
     "Medicine": {
         "base_amount": 3,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0, "Theocracy":-2},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Vice Goods": {
         "base_amount": 2,
-        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 1},
+        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 1, "Theocracy":-2},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
     },
     "Technology Goods": {
         "base_amount": 2,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0},
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0, "Theocracy":-10},
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
     },
     "Microchips": {
         "base_amount": 1,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0},
+        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0, "Theocracy":-10},
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
     },
     "Luxury Goods": {
         "base_amount": 1,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": 0, "Anarchy": 1},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": 0, "Anarchy": 1, "Theocracy":2},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Weapons": {
         "base_amount": 3,
-        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1},
+        "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1, "Theocracy":-1},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Narcotics": {
         "base_amount": 1,
-        "politics": {"Democracy": 0, "Republic": -1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 2},
+        "politics": {"Democracy": 0, "Republic": -1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 2, "Theocracy":-1},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
     },
     "Equipment Parts": {
         "base_amount": 2,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0, "Theocracy":-10},
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
     },
     "Fuel": {
         "base_amount": 4,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0},
+        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":-1},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Ammunition": {
         "base_amount": 3,
-        "politics": {"Democracy": 0, "Republic": 1, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1},
+        "politics": {"Democracy": 0, "Republic": 1, "Dictatorship": 1, "Monarchy": 1, "Anarchy": 1, "Theocracy":-1},
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
 }
@@ -113,6 +113,7 @@ ILLEGAL_GOODS_BY_POLITICS = {
     "Dictatorship": {"Narcotics", "Vice Goods"},
     "Monarchy": {"Luxury Goods", "Narcotics"},
     "Anarchy": set(),  # everything goes
+    "Theocracy": {"Technology Goods", "Microchips", "Equipment Parts", "Narcotics"},
 }
 ESSENTIAL_GOODS = {
     "Maloq": {"Essential Goods"},
@@ -152,3 +153,6 @@ MAJOR_SURPLUS_SUPPLY_RATIO = 2.0
 # it takes 10 000 days to reach 4.0 inflation
 MAX_INFLATION_DAYS = 10000
 MAX_INFLATION = 4.0
+
+BASE_TRADE_GOODS_AMOUNT = 20000
+EQUILIBRIUM_VARIANCE = 0.25

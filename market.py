@@ -61,7 +61,6 @@ class SimulationStatus(object):
             # in essence, this is a sliding value from max_difficulty_penalty to 1.0 based on the trade difficulty selected
             self.trade_difficulty_status[trade_good]["price_range"] = base_range * self.trade_difficulty_multiplier
 
-
 @dataclass
 class Producer:
     """
@@ -171,7 +170,6 @@ class Actor:
                 del self.items[index]
         return self
 
-
 def is_legal(trade_good, race, political_system):
     return not (
             trade_good in ILLEGAL_GOODS_BY_RACE.get(race, set()) or
@@ -180,9 +178,6 @@ def is_legal(trade_good, race, political_system):
 
 def is_essential(trade_good, race):
     return trade_good in ESSENTIAL_GOODS.get(race, set())
-
-#is_legal("Vice Goods", "Maloq", "Democracy")  # ➝ False
-#is_legal("Weapons", "Peleng", "Anarchy")      # ➝ True
 
 class MarketGoodStatus:
     def __init__(self, essential : bool, legality : bool, buy_modifiers, sell_modifiers,
@@ -205,6 +200,7 @@ class MarketGoodStatus:
         self.total_supply = total_supply
         self.available_supply = 0
         self.enterprise_amount = enterprise_amount
+        self.enterprise_text = ""
 
         # these 2 variables are what is gonna be used to calculate new prices every day. Over time, these values are
         # drifting towards the current supply. When recalculating due to breakpoints, these values change, making big
@@ -349,7 +345,6 @@ def trade_good_distribution(total_goods : int, num_slots : int, spread_multiplie
 
     return distribution
 
-
 def bracketed_pricing(equilibrium):
     return (round(MAJOR_DEFICIT_SUPPLY_RATIO * equilibrium), round(DEFICIT_SUPPLY_RATIO * equilibrium),
             round(SURPLUS_SUPPLY_RATIO * equilibrium), round(MAJOR_SURPLUS_SUPPLY_RATIO * equilibrium))
@@ -394,7 +389,6 @@ def get_breakpoint_quantities(equilibrium, after_supply, before_supply=100000000
         breakpoints.reverse()
 
     return breakpoints
-
 
 def calculate_final_price(inflation, base_price, price_point, current_fluctuation, bonus, min_price=100000000, fluctuation_multiplier=1.0) -> int:
     return round(min(inflation * base_price * price_point + (current_fluctuation * inflation * fluctuation_multiplier), min_price) * bonus)
@@ -459,7 +453,6 @@ class Market:
 
         sell_delta = supply - status.last_sell_supply
         self.trade_good_status[trade_good].last_sell_supply += sell_delta * drift_factor
-
 
     def update_available_supply(self, trade_good):
         status = self.trade_good_status[trade_good]
@@ -674,7 +667,6 @@ class Market:
             if distributed_total >= quantity_to_distribute:
                 break
 
-
     def sell(self, trade_good, item, quantity) -> Item:
         order = self.sell_order[trade_good]
 
@@ -733,7 +725,6 @@ class Market:
                                      SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_sell_price_bonus(None, trade_good),
                                      min_buy_price)
-
 
     def calculate_buy_price_point(self, order_listing : OrderListing, trade_good : str, new_supply_ratio=-1) -> float:
         # I'm pretty proud of this as this ensures the resulting price to be strictly within the base range, and it's
@@ -812,20 +803,18 @@ class Market:
 
     @staticmethod
     def generate_market(market_name, race, market_size, development_score, political_system, development_type):
-        BASE_MULTIPLIER = 20000
-        VARIANCE = 0.5
-
         statuses = {}
 
         for trade_good in TRADE_GOODS_DATA:
-            base_price = TRADE_GOODS_DATA[trade_good]["base_price"]
-            raw_equilibrium = BASE_MULTIPLIER * (market_size / 1000) / base_price
+            data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
+            enterprise_amount = int(data["base_amount"] + data["politics"][political_system] + data["development"][development_type])
 
-            equilibrium = round(random.uniform(1 - VARIANCE, 1 + VARIANCE) * raw_equilibrium)
+            base_price = TRADE_GOODS_DATA[trade_good]["base_price"]
+            raw_equilibrium = development_score * BASE_TRADE_GOODS_AMOUNT * (max(1, enterprise_amount) / (data["base_amount"] + 1)) * (market_size / 1000) / base_price
+
+            equilibrium = round(random.triangular(1 - EQUILIBRIUM_VARIANCE, 1 + EQUILIBRIUM_VARIANCE) * raw_equilibrium )
             total_supply = round(random.triangular(0, 2.5) * equilibrium)
 
-            data = TRADE_GOOD_ENTERPRISE_RULES[trade_good]
-            enterprise_amount = max(int(data["base_amount"] + data["politics"][political_system] + data["development"][development_type]), 1)
 
             trade_status = MarketGoodStatus(is_essential(trade_good, race), is_legal(trade_good, race, political_system), [], [], equilibrium, total_supply, enterprise_amount)
             statuses[trade_good] = trade_status
@@ -833,50 +822,92 @@ class Market:
         temp = Market(market_name, race, market_size, development_score, statuses)
 
         for trade_good in TRADE_GOODS_DATA.keys():
-            temp.generate_new_orders(trade_good)
+            temp.generate_new_orders(trade_good, race)
         return temp
 
-    def generate_new_orders(self, trade_good):
+    def generate_new_orders(self, trade_good, race):
         status = self.trade_good_status[trade_good]
         equilibrium = status.equilibrium_quantity
-        supply = status.total_supply
+
+        if not status.legality:
+            interstellar_amount = 0
+            enterprise_amount = 0
+            interstellar_share, enterprise_share, individual_share = 0, 0, 1.0
+        elif status.enterprise_amount <= 0:
+            interstellar_amount = 1
+            enterprise_amount = 0
+            interstellar_share, enterprise_share, individual_share = 0.7, 0, 0.3
+        elif status.enterprise_amount <= 4:
+            interstellar_amount = 1
+            enterprise_amount = status.enterprise_amount - interstellar_amount
+            interstellar_share, enterprise_share, individual_share = 0.3, 0.5, 0.2
+        else:
+            interstellar_amount = 2
+            enterprise_amount = status.enterprise_amount - interstellar_amount
+            interstellar_share, enterprise_share, individual_share = 0.3, 0.5, 0.2
+
+        individual_amount = int(random.triangular(5, 20))
+
+        # --- Generate total supply scaled to producer count ---
+        base_amount = TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"] + 1
+        supply = round(status.total_supply * (max(status.enterprise_amount, 1) / base_amount))
+        status.total_supply = supply
 
         available_supply = supply - bracketed_pricing(equilibrium)[1]
-        producers_amount = status.enterprise_amount
+        status.available_supply = available_supply
+
+        # --- Calculate prices ---
+        ratio = supply / equilibrium if equilibrium != 0 else supply
+        sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
+        status.buy_price, status.sell_price = buy_price, sell_price
 
         letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        # --- Distribute goods among producer types based on share ---
+        interstellar_goods = trade_good_distribution(round(available_supply * interstellar_share), interstellar_amount, 0.5)
+        enterprise_goods = trade_good_distribution(round(available_supply * enterprise_share), enterprise_amount, 0.5)
+        individual_goods = trade_good_distribution(round(available_supply * individual_share), individual_amount, 0.5)
 
-        buy_goods = trade_good_distribution(available_supply, producers_amount, 0.5)
-
-        self.trade_good_status[trade_good].available_supply = available_supply
-        ratio = supply / equilibrium if equilibrium != 0 else supply
-
-        sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio) # buy_price is a generic price without variations of producers
-
-        self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
-        self.trade_good_status[trade_good].total_supply = supply
-
-        # BUY ORDERS
-        for i in range(producers_amount):
-            # for now enterprise names will sound generic
-            corp_name = f"{self.name}-{trade_good}-{letters[i]}"
-
-            producer = Producer("Enterprise", corp_name, random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
-            buy_order = OrderListing(buy_goods[i], producer)
+        # --- Generate BUY orders for Interstellar producers ---
+        for i in range(interstellar_amount):
+            corp_name = f"{self.name}-{trade_good}-I{i}"
+            producer = Producer("Interstellar", corp_name,
+                                random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD))
+            buy_order = OrderListing(interstellar_goods[i], producer)
             buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
-
             self.buy_orders[trade_good].append(buy_order)
 
-        # SELL ORDER - Only one trade good access point, only one sell order needed
+        # --- Generate BUY orders for Enterprise producers ---
+        for i in range(enterprise_amount):
+            corp_name = f"{self.name}-{trade_good}-E{letters[i]}"
+            producer = Producer("Enterprise", corp_name,
+                                random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
+            buy_order = OrderListing(enterprise_goods[i], producer)
+            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
+            buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
+            self.buy_orders[trade_good].append(buy_order)
+
+        # --- Generate BUY orders for Individual producers ---
+        for i in range(int(individual_amount)):
+            corp_name = f"{self.name}-{trade_good}-IND{i}"
+            producer = Producer("Individual", corp_name, random.uniform(1 - INDIVIDUAL_PRICE_SPREAD, 1 + INDIVIDUAL_PRICE_SPREAD))
+            buy_order = OrderListing(individual_goods[i], producer)
+            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
+            buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
+            self.buy_orders[trade_good].append(buy_order)
+
+        # --- Generate SELL order ---
         self.sell_order[trade_good] = SellListing(max(2 * equilibrium - supply, 0))
         self.sell_order[trade_good].price_point = sell_price
 
-        # get the minimum buying price to then establish a maximum selling price
-        max_sell_final_price = min([order.calculated_price for order in self.buy_orders[trade_good]]) - 1
+        # Use minimum buy price as reference to cap selling price
+        max_sell_final_price = min(order.calculated_price for order in self.buy_orders[trade_good]) - 1
+        self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(
+            self.sell_order[trade_good], trade_good, max_sell_final_price
+        )
 
-        self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, max_sell_final_price)
-
+        status.enterprise_amount = interstellar_amount + enterprise_amount + individual_amount
+        status.enterprise_text = f"{interstellar_amount}-{enterprise_amount}-{individual_amount}"
         self.update_available_supply(trade_good)
 
     def detailed_listing(self, trade_good, items, debug=True):
@@ -899,15 +930,15 @@ class Market:
 
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
-            print(f"Price Ranges: {floor}-{ceil} | Price Points: {round(status.buy_price * self.development_score, 2)} "
+            print(f"Price Ranges: {round(floor, 2)}-{round(ceil, 2)} | Price Points: {round(status.buy_price * self.development_score, 2)} "
                   f"{round(status.sell_price * self.development_score, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
-                  f"| Supply Ratio: {status.total_supply / status.equilibrium_quantity} "
+                  f"| Supply Ratio: {round(status.total_supply / status.equilibrium_quantity, 2)} "
                   f"| Today's Fluctuation: {round(SimulationStatus().global_good_status[trade_good].current_fluctuation, 2)}")
 
         print()
         print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")
         for i in range(enterprise_amount):
-            print(f"{str(i + 1) + "."} {names[i]:>25} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr "
+            print(f"{str(i + 1) + ".":>3} {names[i]:<30} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr "
                   f"| Balance quantity: (x{buy_orders[i].balance_quantity})")
 
         # Filter out invalid (zero-quantity) orders for correct total quantity calculation
@@ -939,7 +970,6 @@ class Market:
         print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr | Balance quantity (x{sell_order.balance_quantity})")
 
         # TODO List selling bonuses here and user items.
-
         filtered_items = [item for item in items if item.trade_good == trade_good]
 
         if len(filtered_items) == 0:
@@ -950,7 +980,7 @@ class Market:
         print(f"\nSituation - {status.situation}")
         print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")
         print(
-            f"Available for export: {status.available_supply} | Internal supply: "
+            f"Available for export: {status.available_supply} | Internal supply wanted: "
             f"{bracketed_pricing(status.equilibrium_quantity)[1] - abs(min(0, status.available_supply))} "
             f"| Total: {status.total_supply}")
 
@@ -984,7 +1014,7 @@ class Market:
             buy_weighted_average_price = str(round(buy_weighted_average_price)) + "cr"
 
             print(f"{str(i + 1) + "." + (" >" if selected else ""):<5} {trade_good + (" <" if selected else ""):<20}   "
-                  f"x{status.available_supply:<10} ~{buy_weighted_average_price:<10} {status.enterprise_amount:<13}"
+                  f"x{status.available_supply:<10} ~{buy_weighted_average_price:<10} {status.enterprise_text:<13}"
                   f" x{sell_order.quantity:<12} {str(sell_order.calculated_price) + "cr":<10}"
                   f" {status.situation:<13} {"Yes" if status.legality else "No":<6} "
                   f" {"Yes" if status.essential else "No":<6}")

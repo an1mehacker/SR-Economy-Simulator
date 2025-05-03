@@ -6,6 +6,7 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 
 # Features
 - Buy from multiple Producers and trade goods at different prices and sell them with your bought items
+- Producers come in 3 types: Interstellar (multiple markets), Enteprise and Individual. Smaller producers have greater price variation but lower supply
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
@@ -39,7 +40,6 @@ Market:
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
-- In addition to Enterprise Producers, add many smaller in quantity Individual Producers
 - Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
