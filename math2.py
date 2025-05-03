@@ -13,7 +13,7 @@ def lerp(a: float, b: float, alpha: float) -> float:
     """
     return (1 - alpha) * a + alpha * b
 
-def map_range_clamped(value, in_min, in_max, out_min, out_max):
+def map_range_clamped(value, in_min, in_max, out_min, out_max) -> float:
     """
     Maps a value from one range to another while clamping it to the input range.
 
