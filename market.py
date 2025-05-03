@@ -5,6 +5,7 @@ from consts import *
 from math2 import *
 from dataclasses import dataclass
 from typing import List, Tuple
+from name_generator import generate_name
 
 class SimulationStatus(object):
     _instance = None
@@ -164,17 +165,26 @@ class Actor:
 
     def remove_item(self, item: Item):
         index = self.find_item_index(item)
+
         if index != -1:
-            self.items[index].remove(item)
-            if self.items[index].total_quantity == 0:
+            if item.total_quantity >= self.items[index].total_quantity:
                 del self.items[index]
+                return self
+
+            self.items[index].remove(item)
+        else:
+            print(f"Can't find item: {item.producer}-{item.market_of_origin}")
+
         return self
 
 def is_legal(trade_good, race, political_system):
-    return not (
-            trade_good in ILLEGAL_GOODS_BY_RACE.get(race, set()) or
-            trade_good in ILLEGAL_GOODS_BY_POLITICS.get(political_system, set())
-    )
+    if race == "Peleng" or political_system == "Anarchy":
+        return True
+
+    race_illegals = ILLEGAL_GOODS_BY_RACE.get(race, set())
+    politics_illegals = ILLEGAL_GOODS_BY_POLITICS.get(political_system, set())
+
+    return trade_good not in race_illegals and trade_good not in politics_illegals
 
 def is_essential(trade_good, race):
     return trade_good in ESSENTIAL_GOODS.get(race, set())
@@ -699,7 +709,7 @@ class Market:
             # some bug when it returns only 50 units, doesn't remove items from your inventory but adds to total supply
             print(f"OrderQ:{order.quantity}, ItemQ: {item.total_quantity}, Breakdown:{list(zip(order_breakpoint_quantities, order_breakpoint_prices))}, Price:{total_price}")
 
-        return Item(trade_good, quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, item.producer)
+        return Item(trade_good, quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), item.market_of_origin, item.producer)
 
     def get_buy_price_bonus(self, order_listing, trade_good) -> float:
         bonuses = self.trade_good_status[trade_good].buy_modifiers
@@ -869,7 +879,7 @@ class Market:
 
         # --- Generate BUY orders for Interstellar producers ---
         for i in range(interstellar_amount):
-            corp_name = f"{self.name}-{trade_good}-I{i}"
+            corp_name = f"{self.name}-{trade_good}-I{i % 26}"
             producer = Producer("Interstellar", corp_name,
                                 random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD))
             buy_order = OrderListing(interstellar_goods[i], producer)
@@ -879,7 +889,7 @@ class Market:
 
         # --- Generate BUY orders for Enterprise producers ---
         for i in range(enterprise_amount):
-            corp_name = f"{self.name}-{trade_good}-E{letters[i]}"
+            corp_name = f"{self.name}-{trade_good}-E{letters[i % 26]}"
             producer = Producer("Enterprise", corp_name,
                                 random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
             buy_order = OrderListing(enterprise_goods[i], producer)
@@ -889,7 +899,7 @@ class Market:
 
         # --- Generate BUY orders for Individual producers ---
         for i in range(int(individual_amount)):
-            corp_name = f"{self.name}-{trade_good}-IND{i}"
+            corp_name = generate_name(race)
             producer = Producer("Individual", corp_name, random.uniform(1 - INDIVIDUAL_PRICE_SPREAD, 1 + INDIVIDUAL_PRICE_SPREAD))
             buy_order = OrderListing(individual_goods[i], producer)
             buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
@@ -961,7 +971,7 @@ class Market:
             min_buy_price, min_buy_quantity = (
                 min(order.calculated_price for order in buy_orders), 0) if buy_orders else (0, 0)
 
-        min_buy_price = str(min_buy_price) + "cr"
+        min_buy_price = str(min_buy_price - 1) + "cr"
 
         print(f"Average buy prices: {buy_weighted_average_price} | Min buy: {min_buy_price} (x{min_buy_quantity})")
 

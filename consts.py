@@ -105,15 +105,15 @@ ILLEGAL_GOODS_BY_RACE = {
     "Peleng": set(),  # nothing banned
     "Human": {"Weapons", "Narcotics"},
     "Faeyan": {"Weapons", "Narcotics"},
-    "Gaalian": {"Vice Goods", "Narcotics"},
+    "Gaalian": {"Vice Goods", "Narcotics", "Weapons"},
 }
 ILLEGAL_GOODS_BY_POLITICS = {
-    "Democracy": {"Narcotics", "Weapons"},
-    "Republic": {"Narcotics"},
-    "Dictatorship": {"Narcotics", "Vice Goods"},
-    "Monarchy": {"Luxury Goods", "Narcotics"},
-    "Anarchy": set(),  # everything goes
-    "Theocracy": {"Technology Goods", "Microchips", "Equipment Parts", "Narcotics"},
+    "Democracy": {"Weapons"},
+    "Republic": set(),
+    "Dictatorship": {"Vice Goods"},
+    "Monarchy": set(),
+    "Anarchy": set(),
+    "Theocracy": {"Technology Goods", "Microchips", "Equipment Parts"},
 }
 ESSENTIAL_GOODS = {
     "Maloq": {"Essential Goods"},
@@ -141,9 +141,9 @@ SUPPLY_CHAINS = {
     "Equipment Parts": {"Microchips", "Refined Minerals"},
 }
 
-INTERSTELLAR_PRICE_SPREAD = 0.15
-ENTERPRISE_PRICE_SPREAD = 0.25
-INDIVIDUAL_PRICE_SPREAD = 0.4
+INTERSTELLAR_PRICE_SPREAD = 0.10
+ENTERPRISE_PRICE_SPREAD = 0.15
+INDIVIDUAL_PRICE_SPREAD = 0.25
 
 DEFICIT_SUPPLY_RATIO = 0.75
 MAJOR_DEFICIT_SUPPLY_RATIO = 0.2

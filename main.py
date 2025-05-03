@@ -27,7 +27,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -49,9 +49,11 @@ def display_help():
           "s [corporation index] [quantity] - to sell\n"
           "a [corporation index] [quantity] - debug command, to add goods to a corporation\n"
           "r [quantity] - debug command, to remove goods from the market\n"
-          "ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
-          "Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
-          "as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n")
+          "i - show inventory\n"
+          "m [market_id : optional] - display existing markets and switch to another market if index is provided\n")
+          #"ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
+          #"Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
+          #"as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n")
 
 
 if __name__ == "__main__":
@@ -176,7 +178,7 @@ if __name__ == "__main__":
             item = user.items[item_index]
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
 
-            user.remove_item(item)
+            user.remove_item(item) # TODO: market should only sell if this doesn't fail, this executes anyway
             if len(item.breakdown_prices) == 1:
                 print(f"You sold {item.total_quantity} {tg} for a total of {item.total_cost}cr!")
                 command, params = parse_command()
@@ -204,8 +206,26 @@ if __name__ == "__main__":
             market.market_listing(tg)
 
         if command == "m":
-            for i, market in enumerate(markets):
-                print(f"{i+1} - {market.short_listing()}")
+            if not params:
+                for i, market in enumerate(markets):
+                    print(f"{i+1} - {market.short_listing()}")
+            else:
+                market_index = int(params[0]) - 1
+
+                if not (0 <= market_index < len(markets)):
+                    print("Need valid market index")
+                    command, params = parse_command()
+                    continue
+
+                market = markets[market_index]
+                market.market_listing(tg)
+
+        if command == "i":
+            print(f"Money: {user.money}cr")
+            print("\nTrade Goods")
+            for i, item in enumerate(user.items):
+                print(
+                    f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_cost / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         if command == "w":
             days = SimulationStatus().days_elapsed

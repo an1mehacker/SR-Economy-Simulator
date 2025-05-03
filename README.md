@@ -7,6 +7,7 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 # Features
 - Buy from multiple Producers and trade goods at different prices and sell them with your bought items
 - Producers come in 3 types: Interstellar (multiple markets), Enteprise and Individual. Smaller producers have greater price variation but lower supply
+- Travel to other markets to find profitable trades
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
@@ -49,6 +50,14 @@ Market:
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended
 - Client side only implementation on a website
+
+
+# Version history
+
+### Current
+0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
+
+### Past
 
 # Data Structures
 ### SimulationStatus:

@@ -500,7 +500,7 @@ def generate_gaal_name():
     return f"{first} {last}"
 
 def generate_maloq_name():
-    starts = ["Ab", "Ag", "Bak", "Bal", "Bor", "Dar", "Gon", "Gra", "Kud", "Lag", "Zar"]
+    starts = ["Ab", "Ag", "Bak", "Bal", "Bor", "Dar", "Gon", "Gra", "Kud", "Lag", "Zar", "Za", "Zo"]
     mids = ["ra", "do", "ka", "ta", "lan", "gar", "don", "nak", "lek", "barg", "tro"]
     ends = ["gor", "dan", "br", "gr", "rak", "dru", "ban", "gak", "tor", "kar", "dron", "grom"]
     ends_2 = ["gor", "dan", "bar", "gar", "rak", "dru", "ban", "gak", "tor", "kar", "dron", "grom"]
@@ -600,7 +600,7 @@ def generate_human_name():
         first = random.choice(
             ["Ivan", "Anya", "Mihail", "Katerina", "Boris", "Nina", "Dmitri", "Tatiana", "Alexei", "Irina"])
         last = random.choice(
-            ["Petrov", "Ivanov", "Kuznetsov", "Smirnov", "Vasiliev", "Volkov", "Sokolov", "Romanov", "Morozov",
+            ["Petrov", "Ivanov", "Kuznetsov", "Smirnov", "Vasiliev", "Volkov", "Sokolov", "Gusarov", "Morozov",
              "Kovalenko"])
 
     elif ethnicity == "Asian":
@@ -622,31 +622,49 @@ def generate_human_name():
 
     return f"{first} {last}"
 
+def generate_name(race):
+    if race == "Peleng":
+        choices = [1, 2, 3, 4]
+        one = random.choice(choices)
+        choices.remove(one)
+        two = random.choice(choices)
+        return generate_peleng_name(one) + " " + generate_peleng_name(two)
+    elif race == "Human":
+        return generate_human_name()
+    elif race == "Maloq":
+        return generate_maloq_name()
+    elif race == "Faeyan":
+        return generate_fei_name()
+    elif race == "Gaalian":
+        return generate_gaal_name()
+
+    #print(name1 + " " + name2)
+
 # Create a list of syllable lists
 #split_names = [split_into_syllables(name) for name in peleng_names]
 #print(split_names) # Show the first 10 as a sample
 
 names = []
-for _ in range(1000):
+#for _ in range(1000):
     #print(generate_fei_name())
     #print(generate_gaal_name())
     #print(generate_maloq_name())
 
-    choices = [1, 2, 3, 4]
-    one = random.choice(choices)
-    choices.remove(one)
-    two = random.choice(choices)
+    #choices = [1, 2, 3, 4]
+    #one = random.choice(choices)
+    #choices.remove(one)
+    #two = random.choice(choices)
 
-    name1 = generate_peleng_name(one)
-    name2 = generate_peleng_name(two)
+    #name1 = generate_peleng_name(one)
+    #name2 = generate_peleng_name(two)
 
-    names.append(name1)
-    names.append(name2)
+    #names.append(name1)
+    #names.append(name2)
 
     #print(name1 + " " + name2)
     #print(generate_human_name())
     #print()
 
-print(analyze_consonant_frequencies(peleng_names, consonant_mids))
+#print(analyze_consonant_frequencies(peleng_names, consonant_mids))
 
-print(analyze_consonant_frequencies(names, consonant_mids))
+#print(analyze_consonant_frequencies(names, consonant_mids))
