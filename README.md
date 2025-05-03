@@ -17,7 +17,14 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 - Realistic Price fluctuations based on the global market conditions and volatility speeds that are different for each trade good
 
 Here's an example use
-![](images/pic1.png?)
+![](images/demo.gif?)
+
+# Version history
+
+### Current
+0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
+
+### Past
 
 Most important file is economy_entity.py
 
@@ -50,14 +57,6 @@ Market:
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended
 - Client side only implementation on a website
-
-
-# Version history
-
-### Current
-0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
-
-### Past
 
 # Data Structures
 ### SimulationStatus:
