@@ -1,3 +1,5 @@
+import random
+
 from market import *
 from math2 import clamp
 from collections import defaultdict
@@ -27,7 +29,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -37,23 +39,81 @@ def parse_command():
 
 def display_help():
     print("\n"
-          "Main Commands\n"
-          "h - home screen, show summary listing for all trade goods on the market\n"
-          "t [trade good index] - to switch to another trade good\n"
-          "help - show this command list\n"
-          "q - quit\n"
-          "w [number of days: optional] - skip time to see changes in price\n\n"
-          "Operation commands\n"
-          "l - show detailed listing of the selected trade good. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
-          "b [corporation index] [quantity] - to buy\n"
-          "s [corporation index] [quantity] - to sell\n"
-          "a [corporation index] [quantity] - debug command, to add goods to a corporation\n"
-          "r [quantity] - debug command, to remove goods from the market\n"
-          "i - show inventory\n"
-          "m [market_id : optional] - display existing markets and switch to another market if index is provided\n")
+        "Main Commands\n"
+        "h - home screen, show summary listing for all trade goods on the market\n"
+        "t [trade good index] - to switch to another trade good\n"
+        "help - show this command list\n"
+        "q - quit\n"
+        "w [number of days: optional] - skip time to see changes in price\n\n"
+        "Operation commands\n"
+        "l - show detailed listing of the selected trade good. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
+        "b [corporation index] [quantity] - to buy\n"
+        "s [corporation index] [quantity] - to sell\n"
+        "a [corporation index] [quantity] - debug command, to add goods to a corporation\n"
+        "r [quantity] - debug command, to remove goods from the market\n"
+        "i - show inventory\n"
+        "m [market_id : optional] - display existing markets and switch to another market if index is provided\n"
+        "f [profit margin : optional] [supply share : optional] [total profit : optional] - find profitable trades with the specified parameters, e.g. f 0.2 0.1 1000\n")
+
           #"ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
           #"Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
           #"as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n")
+
+
+def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minimum_profit=0, verbose=True):
+    profitable_trades = []
+    total = 0
+
+    for trade_good in TRADE_GOODS_DATA:
+        for i, sell_market in enumerate(markets):
+            status_sell = sell_market.trade_good_status[trade_good]
+            sell_order = sell_market.sell_order.get(trade_good)
+            if not sell_order:
+                continue
+            sell_price = sell_order.calculated_price
+
+            for j, buy_market in enumerate(markets):
+                status_buy = buy_market.trade_good_status[trade_good]
+
+                if i == j:
+                    continue  # skip same market
+
+
+                buy_orders = buy_market.buy_orders.get(trade_good, [])
+
+                if status_buy.available_supply <= 0:
+                    total += len(buy_orders)
+                    continue  # skip empty markets
+
+                for buy_order in buy_orders:
+                    total += 1
+                    buy_price = buy_order.calculated_price
+                    profit = sell_price - buy_price
+
+                    if profit > 0:
+                        margin = profit / buy_price
+                        share = buy_order.quantity / status_buy.available_supply
+                        total_profit = buy_order.quantity * profit
+                        trade = {
+                            "buy_market": buy_market.name,
+                            "trade_good": trade_good,
+                            "buy_price": buy_price,
+                            "quantity": buy_order.quantity,
+                            "sell_market": sell_market.name,
+                            "sell_price": sell_price,
+                            "profit_per_unit": profit,
+                            "total_profit": total_profit,
+                            #"margin": f"{round(margin * 100, 1)}%"
+                            "margin": margin
+                        }
+                        if margin > minimum_margin and share > minimum_share and total_profit > minimum_profit:
+                            if verbose:
+                                print(trade)
+                            profitable_trades.append(trade)
+
+    average_profit = sum([trade["margin"] for trade in profitable_trades]) / len(profitable_trades)
+    print(f"Displaying {len(profitable_trades)} - ({round(len(profitable_trades) / total * 100, 1)}%) profitable trades out of {total} total at the requested parameters ({minimum_margin} {minimum_share} {minimum_profit}), average profits: {round(average_profit * 100, 1)}")
+    return profitable_trades
 
 
 if __name__ == "__main__":
@@ -67,42 +127,49 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10), market size (500-3000) and development score (0.9-1.1) separated by spaces\nOr press Enter for default values (1 1000 1.0)\n> ")
+            "Enter trade difficulty (1-10) and an additional amount of markets to generate (don't recommend more than 50)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, market_size, development_score = 1, 1000, 1.0
+            trade_difficulty, additional_markets = 1, 5
             break
 
         try:
-            trade_difficulty, market_size, development_score = setup_input2
+            trade_difficulty, additional_markets = setup_input2
 
             trade_difficulty = clamp(int(trade_difficulty), 1, 10)
-            market_size = clamp(int(market_size), 500, 3000)
-            development_score = clamp(float(development_score), 0.9, 1.1)
+            additional_markets = clamp(int(additional_markets), 0, 1000)
             break
         except ValueError:
-            print("Invalid input, enter something like '2 0.9' or press Enter for default values (1 1.0)")
+            print("Invalid input, enter something like '2 5' or press Enter for default values (1 5)")
 
     simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
     markets = []
 
+    min_development, max_development = LOWER_DEVELOPMENT_SCORE, UPPER_DEVELOPMENT_SCORE
+    min_size, max_size = 500, 3000
     political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy"]
     development_types = ["Agrarian", "Mixed", "Industrial"]
+    races = ["Human", "Peleng", "Gaalian", "Faeyan", "Maloq"]
 
     tg = "Technology Goods"
-    political_system = "Democracy"
-    development_type = "Mixed"
 
-
-    market = Market.generate_market("Earth", "Human", market_size, development_score, political_system, development_type)
+    market = Market.generate_market("Earth", "Human", 1000, 1.0, "Democracy", "Industrial")
     markets.append(Market.generate_market("Phedok", "Peleng", 1100, 0.9, "Republic", "Mixed"))
     markets.append(Market.generate_market("Gaaldok", "Gaalian", 1200, 1.1, "Monarchy", "Industrial"))
     markets.append(Market.generate_market("Eypentak", "Faeyan", 1100, 1.2, "Republic", "Industrial"))
-    markets.append(Market.generate_market("Ramgatru", "Maloq", 1100, 0.9, "Dictatorship", "Mixed"))
+    markets.append(Market.generate_market("Ramgatru", "Maloq", 1100, 0.8, "Dictatorship", "Mixed"))
 
     markets.append(market)
+
+    #additional_markets = 200
+    for i in range(additional_markets):
+        markets.append(Market.generate_market(f"Market-{i}", random.choice(races),
+                                              random.randint(min_size, max_size),
+                                              random.uniform(min_development, max_development),
+                                              random.choice(political_systems),
+                                              random.choice(development_types)))
 
     user = Actor(10000)
     market.market_listing(tg)
@@ -137,7 +204,7 @@ if __name__ == "__main__":
 
             user.add_item(item)
             if len(item.breakdown_prices) == 1:
-                print(f"You bought {item.total_quantity} {tg} from {item.producer.name} for a total of {item.total_cost}cr!")
+                print(f"You bought {item.total_quantity} {tg} from {item.producer.name} for a total of {item.total_value}cr!")
                 command, params = parse_command()
                 continue
 
@@ -146,7 +213,8 @@ if __name__ == "__main__":
             for q, p in brackets:
                 print(f"You bought {q} {tg} at {p}cr each")
 
-            print(f"Totaling {item.total_quantity} {tg} from {item.producer.name} for {item.total_cost}cr!")
+            user.money -= item.total_value
+            print(f"Totaling {item.total_quantity} {tg} from {item.producer.name} for {item.total_value}cr! Your money: {user.money}cr")
 
 
         if command in ["s", "sl"]:
@@ -178,16 +246,17 @@ if __name__ == "__main__":
             item = user.items[item_index]
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
 
-            user.remove_item(item) # TODO: market should only sell if this doesn't fail, this executes anyway
+            user.remove_item(item) # TODO: market should only sell if this doesn't fail as this executes anyway
             if len(item.breakdown_prices) == 1:
-                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_cost}cr!")
+                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr!")
                 command, params = parse_command()
                 continue
 
             for q, p in item.breakdown_prices:
                 print(f"You sold {q} {tg} at {p}cr each")
 
-            print(f"Totaling {item.total_quantity} {tg} for {item.total_cost}cr!")
+            user.money += item.total_value
+            print(f"Totaling {item.total_quantity} {tg} for {item.total_value}cr! Your money: {user.money}cr")
 
         if command in ["a", "al"]:
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
@@ -201,6 +270,21 @@ if __name__ == "__main__":
 
         if command in ["ab", "as"]:
             print("Not implemented.")
+
+        if command == "f":
+            margin = 0.2
+            minimum_share = 0.1
+            total_profit = 500
+            if len(params) > 0:
+                margin = float(params[0])
+
+            if len(params) > 1:
+                minimum_share = float(params[1])
+
+            if len(params) > 2:
+                total_profit = int(params[2])
+
+            find_profitable_trades(markets, margin, minimum_share, total_profit, True)
 
         if command == "h":
             market.market_listing(tg)
@@ -225,7 +309,7 @@ if __name__ == "__main__":
             print("\nTrade Goods")
             for i, item in enumerate(user.items):
                 print(
-                    f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_cost / item.total_quantity)}cr manufactured by {item.producer.name}")
+                    f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         if command == "w":
             days = SimulationStatus().days_elapsed

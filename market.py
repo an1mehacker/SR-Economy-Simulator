@@ -94,7 +94,7 @@ class Item:
         self.breakdown_prices = breakdown_prices  # List of (quantity, price)
         self.market_of_origin = market_of_origin
         self.producer = producer
-        self.total_cost = self.calculate_total_cost()
+        self.total_value = self.calculate_total_cost()
 
     def calculate_total_quantity(self) -> int:
         return sum(q for q, _ in self.breakdown_prices)
@@ -119,7 +119,7 @@ class Item:
 
         self.breakdown_prices = [(q, p) for p, q in price_map.items()]
         self.total_quantity = self.calculate_total_quantity()
-        self.total_cost = self.calculate_total_cost()
+        self.total_value = self.calculate_total_cost()
 
     def remove(self, other: 'Item'):
         if not self.is_equal(other):
@@ -142,7 +142,7 @@ class Item:
 
         self.breakdown_prices = new_breakdown
         self.total_quantity = self.calculate_total_quantity()
-        self.total_cost = self.calculate_total_cost()
+        self.total_value = self.calculate_total_cost()
 
 class Actor:
     def __init__(self, money: int):
@@ -823,7 +823,7 @@ class Market:
             raw_equilibrium = development_score * BASE_TRADE_GOODS_AMOUNT * (max(1, enterprise_amount) / (data["base_amount"] + 1)) * (market_size / 1000) / base_price
 
             equilibrium = round(random.triangular(1 - EQUILIBRIUM_VARIANCE, 1 + EQUILIBRIUM_VARIANCE) * raw_equilibrium )
-            total_supply = round(random.triangular(0, 2.5) * equilibrium)
+            total_supply = round(random.triangular(LOW_SUPPLY_SPREAD, HIGH_SUPPLY_SPREAD) * equilibrium)
 
 
             trade_status = MarketGoodStatus(is_essential(trade_good, race), is_legal(trade_good, race, political_system), [], [], equilibrium, total_supply, enterprise_amount)
@@ -985,7 +985,7 @@ class Market:
         if len(filtered_items) == 0:
             print(f"No {trade_good} to sell")
         for i, item in enumerate(filtered_items):
-            print(f"{i + 1}. - x{item.total_quantity:<5} {trade_good} at {round(item.total_cost / item.total_quantity)}cr manufactured by {item.producer.name}")
+            print(f"{i + 1}. - x{item.total_quantity:<5} {trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")
         print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")
