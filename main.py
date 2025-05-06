@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
     min_development, max_development = LOWER_DEVELOPMENT_SCORE, UPPER_DEVELOPMENT_SCORE
     min_size, max_size = 500, 3000
-    political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy"]
+    political_systems = ["Democracy", "Republic", "Dictatorship", "Monarchy", "Anarchy", "Theocracy"]
     development_types = ["Agrarian", "Mixed", "Industrial"]
     races = ["Human", "Peleng", "Gaalian", "Faeyan", "Maloq"]
 

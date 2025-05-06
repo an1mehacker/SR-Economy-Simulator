@@ -100,21 +100,6 @@ TRADE_GOOD_ENTERPRISE_RULES = {
     },
 }
 
-ILLEGAL_GOODS_BY_RACE = {
-    "Maloq": {"Vice Goods", "Luxury Goods", "Narcotics"},
-    "Peleng": set(),  # nothing banned
-    "Human": {"Weapons", "Narcotics"},
-    "Faeyan": {"Weapons", "Narcotics"},
-    "Gaalian": {"Vice Goods", "Narcotics", "Weapons"},
-}
-ILLEGAL_GOODS_BY_POLITICS = {
-    "Democracy": {"Weapons"},
-    "Republic": set(),
-    "Dictatorship": {"Vice Goods"},
-    "Monarchy": set(),
-    "Anarchy": set(),
-    "Theocracy": {"Technology Goods", "Microchips", "Equipment Parts"},
-}
 ESSENTIAL_GOODS = {
     "Maloq": {"Essential Goods"},
     "Peleng": {"Essential Goods", "Medicine", "Narcotics"},
@@ -122,6 +107,7 @@ ESSENTIAL_GOODS = {
     "Faeyan": {"Essential Goods", "Medicine", "Technology Goods"},
     "Gaalian": {"Essential Goods", "Medicine"},
 }
+
 SUPPLY_CHAINS = {
     "Essential Goods": {"Organics", "Synthetics"},
     "Medicine": {"Organics", "Synthetics"},
@@ -155,7 +141,7 @@ MAX_INFLATION = 4.0
 LOWER_DEVELOPMENT_SCORE = 0.9 # higher interval - lower average profits, small effect
 UPPER_DEVELOPMENT_SCORE = 1.1
 
-BASE_TRADE_GOODS_AMOUNT = 30000 # increases the amount of large volume trades and decreases their average profitability
+BASE_TRADE_GOODS_AMOUNT = 20000 # increases the amount of large volume trades and decreases their average profitability
 EQUILIBRIUM_VARIANCE = 0.25 # doesn't seem to have a great effect on anything
 LOW_SUPPLY_SPREAD = -1 # greatly affects amount of profitable trades and profitability
 HIGH_SUPPLY_SPREAD = 3 # greatly affects amount of profitable trades and profitability

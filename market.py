@@ -178,13 +178,51 @@ class Actor:
         return self
 
 def is_legal(trade_good, race, political_system):
+    # Absolute legality: Peleng race or Anarchy political system
     if race == "Peleng" or political_system == "Anarchy":
         return True
 
-    race_illegals = ILLEGAL_GOODS_BY_RACE.get(race, set())
-    politics_illegals = ILLEGAL_GOODS_BY_POLITICS.get(political_system, set())
+    # --- Luxury Goods ---
+    if trade_good == "Luxury Goods":
+        if race == "Maloq" and political_system != "Monarchy":
+            return False
 
-    return trade_good not in race_illegals and trade_good not in politics_illegals
+    # --- Vice Goods ---
+    if trade_good == "Vice Goods":
+        if race in {"Maloq", "Gaalian"}:
+            return False
+        if race == "Faeyan" and political_system in {"Monarchy", "Dictatorship"}:
+            return False
+
+    # --- Tech Goods ---
+    if trade_good == "Technology Goods":
+        if race != "Faeyan" and political_system == "Theocracy":
+            return False
+
+    # --- Weapons ---
+    if trade_good == "Weapons":
+        if race in {"Faeyan", "Gaalian"} and political_system != "Dictatorship":
+            return False
+        if race == "Human" and political_system == "Democracy":
+            return False
+
+    # --- Narcotics ---
+    if trade_good == "Narcotics":
+        if race == "Human" and political_system == "Monarchy":
+            return True
+        if race == "Faeyan" and political_system == "Dictatorship":
+            return True
+
+        return False
+
+    # interesting combinations:
+    # Maloq Theocracy -> Luxury Goods, Vice Goods, Tech Goods, Narcotics banned
+    # Faeyan Dictatorship -> Everything legal except Vice Goods
+    # Human Monarchy - Everything legal
+    #
+
+    return True
+
 
 def is_essential(trade_good, race):
     return trade_good in ESSENTIAL_GOODS.get(race, set())
@@ -404,7 +442,7 @@ def calculate_final_price(inflation, base_price, price_point, current_fluctuatio
     return round(min(inflation * base_price * price_point + (current_fluctuation * inflation * fluctuation_multiplier), min_price) * bonus)
 
 class Market:
-    def __init__(self, market_name, race, market_size, development_score, trade_good_status):
+    def __init__(self, market_name, race, political_system, development_type, market_size, development_score, trade_good_status):
         """
 
         :param market_name: string - name of the market like the planet or station's name
@@ -413,6 +451,8 @@ class Market:
         """
         self.name = market_name
         self.race = race
+        self.political_system = political_system
+        self.development_type = development_type
         self.market_size = market_size
         self.development_score = development_score
         self.trade_good_status = trade_good_status
@@ -820,16 +860,19 @@ class Market:
             enterprise_amount = int(data["base_amount"] + data["politics"][political_system] + data["development"][development_type])
 
             base_price = TRADE_GOODS_DATA[trade_good]["base_price"]
-            raw_equilibrium = development_score * BASE_TRADE_GOODS_AMOUNT * (max(1, enterprise_amount) / (data["base_amount"] + 1)) * (market_size / 1000) / base_price
+            legal = is_legal(trade_good, race, political_system)
+            equilibrium_modifier = (max(1, enterprise_amount) / (data["base_amount"] + 1)) if legal else 1
+
+            raw_equilibrium = development_score * BASE_TRADE_GOODS_AMOUNT * equilibrium_modifier * (market_size / 1000) / base_price
 
             equilibrium = round(random.triangular(1 - EQUILIBRIUM_VARIANCE, 1 + EQUILIBRIUM_VARIANCE) * raw_equilibrium )
             total_supply = round(random.triangular(LOW_SUPPLY_SPREAD, HIGH_SUPPLY_SPREAD) * equilibrium)
 
 
-            trade_status = MarketGoodStatus(is_essential(trade_good, race), is_legal(trade_good, race, political_system), [], [], equilibrium, total_supply, enterprise_amount)
+            trade_status = MarketGoodStatus(is_essential(trade_good, race), legal, [], [], equilibrium, total_supply, enterprise_amount)
             statuses[trade_good] = trade_status
 
-        temp = Market(market_name, race, market_size, development_score, statuses)
+        temp = Market(market_name, race, political_system, development_type, market_size, development_score, statuses)
 
         for trade_good in TRADE_GOODS_DATA.keys():
             temp.generate_new_orders(trade_good, race)
@@ -995,7 +1038,7 @@ class Market:
             f"| Total: {status.total_supply}")
 
     def short_listing(self):
-        return f"{self.name} - Size: {self.market_size} - Development: {self.development_score}x"
+        return f"{self.name} - Size: {self.market_size} - Native Race: {self.race} - Political System: {self.political_system} - Type: {self.development_type} - Development Score: {self.development_score}x"
 
     def market_listing(self, tg):
         print(self.short_listing())
