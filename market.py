@@ -177,36 +177,39 @@ class Actor:
 
         return self
 
+    def get_amount_of_items(self, tg):
+        count = 0
+        for item in self.items:
+            if item.trade_good == tg:
+                count += 1
+
+        return count
+
 def is_legal(trade_good, race, political_system):
     # Absolute legality: Peleng race or Anarchy political system
     if race == "Peleng" or political_system == "Anarchy":
         return True
 
-    # --- Luxury Goods ---
     if trade_good == "Luxury Goods":
         if race == "Maloq" and political_system != "Monarchy":
             return False
 
-    # --- Vice Goods ---
     if trade_good == "Vice Goods":
         if race in {"Maloq", "Gaalian"}:
             return False
         if race == "Faeyan" and political_system in {"Monarchy", "Dictatorship"}:
             return False
 
-    # --- Tech Goods ---
     if trade_good == "Technology Goods":
         if race != "Faeyan" and political_system == "Theocracy":
             return False
 
-    # --- Weapons ---
-    if trade_good == "Weapons":
+    if trade_good in {"Weapons", "Ammunition"}:
         if race in {"Faeyan", "Gaalian"} and political_system != "Dictatorship":
             return False
         if race == "Human" and political_system == "Democracy":
             return False
 
-    # --- Narcotics ---
     if trade_good == "Narcotics":
         if race == "Human" and political_system == "Monarchy":
             return True
@@ -216,10 +219,10 @@ def is_legal(trade_good, race, political_system):
         return False
 
     # interesting combinations:
-    # Maloq Theocracy -> Luxury Goods, Vice Goods, Tech Goods, Narcotics banned
-    # Faeyan Dictatorship -> Everything legal except Vice Goods
+    # Maloq Theocracy -> 4 bans: Luxury Goods, Vice Goods, Tech Goods, Narcotics banned
+    # Faeyan Dictatorship -> 1 ban: Vice Goods
     # Human Monarchy - Everything legal
-    #
+    # Combinations that shouldn't exist: Maloq Democracy and Gaalian Anarchy
 
     return True
 
@@ -590,10 +593,8 @@ class Market:
                 buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
 
         if operation == "Sell" or not breakpoint_recalculate:
-            minimum_price = min([buy_order.calculated_price for buy_order in self.buy_orders[trade_good]]) - 1
-
             self.sell_order[trade_good].price_point = sell_price
-            self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good, minimum_price)
+            self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good)
 
         self.trade_good_status[trade_good].buy_price, self.trade_good_status[trade_good].sell_price = buy_price, sell_price
 
@@ -744,10 +745,15 @@ class Market:
             order_breakpoint_quantities = [quantity_operated]
             order_breakpoint_prices = [before_cost]
 
-        if quantity_operated == 0:
-            # wtf happened idk
-            # some bug when it returns only 50 units, doesn't remove items from your inventory but adds to total supply
-            print(f"OrderQ:{order.quantity}, ItemQ: {item.total_quantity}, Breakdown:{list(zip(order_breakpoint_quantities, order_breakpoint_prices))}, Price:{total_price}")
+        # Apply same market penalty (SMP)
+        if item.market_of_origin == self.name:
+            min_price = min([order.calculated_price for order in self.buy_orders[trade_good]]) - 1
+            if order.calculated_price > min_price:
+                # Sell Price 50
+                # Buy prices [49, 50, 51]
+                # New price -> 48
+                for i, price in enumerate(order_breakpoint_prices):
+                    order_breakpoint_prices[i] = clamp(price, 1, min_price)
 
         return Item(trade_good, quantity_operated, list(zip(order_breakpoint_quantities, order_breakpoint_prices)), item.market_of_origin, item.producer)
 
@@ -768,13 +774,12 @@ class Market:
                                      SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_buy_price_bonus(order_listing, trade_good))
 
-    def get_sell_price_by_order(self, sell_order, trade_good, min_buy_price) -> int:
+    def get_sell_price_by_order(self, sell_order, trade_good) -> int:
         return calculate_final_price(SimulationStatus().inflation,
                                      TRADE_GOODS_DATA[trade_good]["base_price"],
                                      sell_order.price_point,
                                      SimulationStatus().global_good_status[trade_good].current_fluctuation,
-                                     self.get_sell_price_bonus(None, trade_good),
-                                     min_buy_price)
+                                     self.get_sell_price_bonus(None, trade_good))
 
     def calculate_buy_price_point(self, order_listing : OrderListing, trade_good : str, new_supply_ratio=-1) -> float:
         # I'm pretty proud of this as this ensures the resulting price to be strictly within the base range, and it's
@@ -952,12 +957,7 @@ class Market:
         # --- Generate SELL order ---
         self.sell_order[trade_good] = SellListing(max(2 * equilibrium - supply, 0))
         self.sell_order[trade_good].price_point = sell_price
-
-        # Use minimum buy price as reference to cap selling price
-        max_sell_final_price = min(order.calculated_price for order in self.buy_orders[trade_good]) - 1
-        self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(
-            self.sell_order[trade_good], trade_good, max_sell_final_price
-        )
+        self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good)
 
         status.enterprise_amount = interstellar_amount + enterprise_amount + individual_amount
         status.enterprise_text = f"{interstellar_amount}-{enterprise_amount}-{individual_amount}"
@@ -1015,6 +1015,7 @@ class Market:
                 min(order.calculated_price for order in buy_orders), 0) if buy_orders else (0, 0)
 
         min_buy_price = str(min_buy_price - 1) + "cr"
+        min_sell_price = min([order.calculated_price for order in self.buy_orders[trade_good]]) - 1
 
         print(f"Average buy prices: {buy_weighted_average_price} | Min buy: {min_buy_price} (x{min_buy_quantity})")
 
@@ -1022,13 +1023,16 @@ class Market:
         print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
         print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr | Balance quantity (x{sell_order.balance_quantity})")
 
-        # TODO List selling bonuses here and user items.
+        # TODO List selling bonuses here
         filtered_items = [item for item in items if item.trade_good == trade_good]
 
         if len(filtered_items) == 0:
             print(f"No {trade_good} to sell")
         for i, item in enumerate(filtered_items):
-            print(f"{i + 1}. - x{item.total_quantity:<5} {trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
+            if item.market_of_origin == self.name and sell_order.calculated_price > min_sell_price:
+                print(f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name} (Penalty: Same Market Selling -> Sell price {min_sell_price})")
+            else:
+                print(f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")
         print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")

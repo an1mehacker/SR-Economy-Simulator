@@ -64,11 +64,11 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
     profitable_trades = []
     total = 0
 
+    # expensive operation especially when the amount of markets is large
     for trade_good in TRADE_GOODS_DATA:
         for i, sell_market in enumerate(markets):
-            status_sell = sell_market.trade_good_status[trade_good]
             sell_order = sell_market.sell_order.get(trade_good)
-            if not sell_order:
+            if not sell_order or sell_order.quantity <= 0:
                 continue
             sell_price = sell_order.calculated_price
 
@@ -82,37 +82,68 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
                 buy_orders = buy_market.buy_orders.get(trade_good, [])
 
                 if status_buy.available_supply <= 0:
-                    total += len(buy_orders)
+                    total += 1
                     continue  # skip empty markets
 
+                valid_buy_orders = []
+                profits = []
                 for buy_order in buy_orders:
-                    total += 1
                     buy_price = buy_order.calculated_price
                     profit = sell_price - buy_price
 
-                    if profit > 0:
-                        margin = profit / buy_price
-                        share = buy_order.quantity / status_buy.available_supply
-                        total_profit = buy_order.quantity * profit
-                        trade = {
-                            "buy_market": buy_market.name,
-                            "trade_good": trade_good,
-                            "buy_price": buy_price,
-                            "quantity": buy_order.quantity,
-                            "sell_market": sell_market.name,
-                            "sell_price": sell_price,
-                            "profit_per_unit": profit,
-                            "total_profit": total_profit,
-                            #"margin": f"{round(margin * 100, 1)}%"
-                            "margin": margin
-                        }
-                        if margin > minimum_margin and share > minimum_share and total_profit > minimum_profit:
-                            if verbose:
-                                print(trade)
-                            profitable_trades.append(trade)
+                    if profit > 0 and buy_order.quantity > 0:
+                        valid_buy_orders.append(buy_order)
+                        profits.append(profit)
 
-    average_profit = sum([trade["margin"] for trade in profitable_trades]) / len(profitable_trades)
-    print(f"Displaying {len(profitable_trades)} - ({round(len(profitable_trades) / total * 100, 1)}%) profitable trades out of {total} total at the requested parameters ({minimum_margin} {minimum_share} {minimum_profit}), average profits: {round(average_profit * 100, 1)}")
+                if valid_buy_orders:
+                    total += 1
+
+                    # Calculate total valid quantities
+                    buy_total_quantity = sum(order.quantity for order in valid_buy_orders)
+
+                    # Calculate weighted average price - buying
+                    buy_weighted_margins = 0
+                    total_profit = 0
+                    buy_weighted_price = 0
+                    profit_per_unit = 0
+                    for k, order in enumerate(valid_buy_orders):
+                        buy_weighted_margins += profits[k] / order.calculated_price * (order.quantity / buy_total_quantity)
+                        buy_weighted_price += order.calculated_price * (order.quantity / buy_total_quantity)
+                        profit_per_unit += profits[k] * (order.quantity / buy_total_quantity)
+                        total_profit += order.quantity * profits[k]
+
+
+                    margin = round(profit_per_unit / buy_weighted_price, 2)
+                    share = buy_total_quantity / status_buy.available_supply
+
+                    trade = {
+                        "buy_market": buy_market.name,
+                        "trade_good": trade_good,
+                        "buy_price": round(buy_weighted_price),
+                        "quantity": buy_total_quantity,
+                        "sell_market": sell_market.name,
+                        "sell_price": sell_price,
+                        "profit_per_unit": round(profit_per_unit),
+                        "total_profit": total_profit,
+                        #"margin": f"{round(margin * 100, 1)}%"
+                        "margin": margin
+                    }
+                    if margin > minimum_margin and share > minimum_share and total_profit > minimum_profit:
+                        if verbose:
+                            print(
+                                f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} ({trade['buy_price']}cr) → "
+                                f"Sell @{trade['sell_market']:<12} ({trade['sell_price']}cr) | Qty: {trade['quantity']} | "
+                                f"Profit: {trade['total_profit']}cr | Margin: {round(trade['margin'] * 100, 1)}%")
+                        profitable_trades.append(trade)
+
+
+    if len(profitable_trades) > 0:
+        average_profit = sum([trade["margin"] for trade in profitable_trades]) / len(profitable_trades)
+        print(f"Displaying {len(profitable_trades)} - ({round(len(profitable_trades) / total * 100, 1)}%) profitable "
+          f"trades out of {total} total at the requested parameters ({minimum_margin} {minimum_share} {minimum_profit}), "
+          f"average profits: {round(average_profit * 100, 1)}%")
+    else:
+        print(f"Could not find any profitable trades under requested parameters ({minimum_margin} {minimum_share} {minimum_profit})")
     return profitable_trades
 
 
@@ -225,8 +256,9 @@ if __name__ == "__main__":
 
             item_index, quantity = int(params[0]) - 1, int(params[1])
 
-            if not (0 <= item_index < len(user.items) and quantity > 0):
-                print(f"Input a valid item index number 1 - {len(user.items)} and a positive quantity number")
+            amount_of_items = user.get_amount_of_items(tg)
+            if not (0 <= item_index < amount_of_items and quantity > 0):
+                print(f"Input a valid item index number 1 - {amount_of_items} and a positive quantity number")
                 command, params = parse_command()
                 continue
 
@@ -241,8 +273,11 @@ if __name__ == "__main__":
                 command, params = parse_command()
                 continue
 
+            found_item = [item for item in user.items if item.trade_good == tg][item_index]
+
             sell_amount = min(sell_amount, quantity)
 
+            item_index = user.find_item_index(found_item)
             item = user.items[item_index]
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
 
@@ -274,7 +309,7 @@ if __name__ == "__main__":
         if command == "f":
             margin = 0.2
             minimum_share = 0.1
-            total_profit = 500
+            total_gain = 500
             if len(params) > 0:
                 margin = float(params[0])
 
@@ -282,9 +317,9 @@ if __name__ == "__main__":
                 minimum_share = float(params[1])
 
             if len(params) > 2:
-                total_profit = int(params[2])
+                total_gain = int(params[2])
 
-            find_profitable_trades(markets, margin, minimum_share, total_profit, True)
+            find_profitable_trades(markets, margin, minimum_share, total_gain, True)
 
         if command == "h":
             market.market_listing(tg)
@@ -308,8 +343,8 @@ if __name__ == "__main__":
             print(f"Money: {user.money}cr")
             print("\nTrade Goods")
             for i, item in enumerate(user.items):
-                print(
-                    f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
+                    print(
+                        f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         if command == "w":
             days = SimulationStatus().days_elapsed
@@ -333,6 +368,11 @@ if __name__ == "__main__":
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
 
         if command == "t":
+            if len(params) < 1:
+                print(f"Usage: t [trade good index]")
+                command, params = parse_command()
+                continue
+
             goods = list(market.buy_orders.keys())
             index = params[0] - 1
             if 0 <= index < len(goods):

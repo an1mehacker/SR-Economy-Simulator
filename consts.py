@@ -111,11 +111,11 @@ ESSENTIAL_GOODS = {
 SUPPLY_CHAINS = {
     "Essential Goods": {"Organics", "Synthetics"},
     "Medicine": {"Organics", "Synthetics"},
+    "Vice Goods": {"Organics", "Synthetics"},
 
     "Refined Minerals": {"Common Minerals", "Rare Minerals"},
 
-    "Vice Goods": {"Refined Minerals", "Organics"},
-    "Narcotics": {"Refined Minerals", "Organics", "Synthetics"},
+    "Narcotics": {"Common Minerals", "Organics", "Synthetics"},
 
     "Luxury Goods": {"Refined Minerals", "Synthetics"},
     "Microchips": {"Refined Minerals", "Synthetics"},
@@ -127,7 +127,7 @@ SUPPLY_CHAINS = {
     "Equipment Parts": {"Microchips", "Refined Minerals"},
 }
 
-
+# changing these doesn't seem to have a great effect on anything
 DEFICIT_SUPPLY_RATIO = 0.75
 MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
 SURPLUS_SUPPLY_RATIO = 1.25
@@ -138,18 +138,18 @@ MAX_INFLATION_DAYS = 10000
 MAX_INFLATION = 4.0
 
 # Market Generation Rules
-LOWER_DEVELOPMENT_SCORE = 0.9 # higher interval - lower average profits, small effect
-UPPER_DEVELOPMENT_SCORE = 1.1
+LOWER_DEVELOPMENT_SCORE = 0.8 # higher interval - lower average profits, small effect
+UPPER_DEVELOPMENT_SCORE = 1.2
 
 BASE_TRADE_GOODS_AMOUNT = 20000 # increases the amount of large volume trades and decreases their average profitability
 EQUILIBRIUM_VARIANCE = 0.25 # doesn't seem to have a great effect on anything
-LOW_SUPPLY_SPREAD = -1 # greatly affects amount of profitable trades and profitability
-HIGH_SUPPLY_SPREAD = 3 # greatly affects amount of profitable trades and profitability
+LOW_SUPPLY_SPREAD = -0.25 # greatly affects amount of profitable trades and profitability
+HIGH_SUPPLY_SPREAD = 2.25 # greatly affects amount of profitable trades and profitability
 
 # significant effect amount of profitable trades and profitability
-INTERSTELLAR_PRICE_SPREAD = 0.10
-ENTERPRISE_PRICE_SPREAD = 0.15
-INDIVIDUAL_PRICE_SPREAD = 0.25
+INTERSTELLAR_PRICE_SPREAD = 0.20
+ENTERPRISE_PRICE_SPREAD = 0.25
+INDIVIDUAL_PRICE_SPREAD = 0.40
 
 """
 f 0 0 5000 (0.2%)

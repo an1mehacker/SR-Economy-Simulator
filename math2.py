@@ -1,6 +1,6 @@
 ﻿# Some much needed functions that for some reason aren't part of built-in math library
 
-def clamp(value, lower, upper):
+def clamp(value, lower, upper=1000000000):
     return lower if value < lower else upper if value > upper else value
 
 def lerp(a: float, b: float, alpha: float) -> float:

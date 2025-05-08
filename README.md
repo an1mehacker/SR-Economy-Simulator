@@ -68,7 +68,13 @@ A Market is a collection of OrderListings that are part of a single Planet or Sp
   - Collection of TradeGoodStatus grouped by trade good type
   - Development Score that affects all prices on the market
 
-### TradeGoodStatus
+### GlobalGoodStatus
+Keeps track of the fluctuation and volatility of a trade good across all markets
+  - Max fluctuation - Absolute amount of price it can vary
+  - Current fluctuation - current fluctuation that gets added to the final price calculation to every order
+  - Volatility duration - How frequently a new fluctuation price is calculated
+
+### MarketGoodStatus
 Keeps track of vital information about a trade good of a market
   - Daily Fluctuation
   - Producer Modifiers
@@ -93,12 +99,12 @@ A Producer can produce more than one trade good. For example medicine and drugs.
 
 ### Trade Good Item
 Whenever you buy trade goods, they're converted to items and placed on your inventory where you can then sell them
-  - Name
+  - Trade good type
+  - Quantity
   - Price Bought
   - Place of origin
   - Producer
   - Legality (This is purely aesthetical for now)
-  - Quantity
 
 ### Actor
 Someone who interacts with the market
