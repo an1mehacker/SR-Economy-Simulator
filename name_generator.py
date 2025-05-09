@@ -426,6 +426,33 @@ maloq_interstellar_corpos = {
     'Ammunition': 'RGT Armament Plant 1-A'
 }
 
+# Combine all corp mappings in one dict
+INTERSTELLAR_CORPOS_BY_RACE = {
+    "Gaalian": gaalian_interstellar_corpos,
+    "Faeyan": faeyan_interstellar_corpos,
+    "Human": human_interstellar_corpos,
+    "Peleng": peleng_interstellar_corpos,
+    "Maloq": maloq_interstellar_corpos,
+}
+
+def generate_interstellar_corp_names(race, trade_good, amount):
+    if race not in INTERSTELLAR_CORPOS_BY_RACE:
+        raise ValueError(f"Unknown race: {race}")
+
+    names = set()
+    all_races = list(INTERSTELLAR_CORPOS_BY_RACE.keys())
+
+    while len(names) < amount:
+        use_own_race = random.random() < 0.5
+        selected_race = race if use_own_race else random.choice([r for r in all_races if r != race])
+
+        corp_dict = INTERSTELLAR_CORPOS_BY_RACE.get(selected_race, {})
+        corp_name = corp_dict.get(trade_good)
+        if corp_name:
+            names.add(corp_name)
+
+    return list(names)
+
 def remove_duplicates(*dicts):
     seen = set()  # Track seen names
     cleaned_dicts = []

@@ -5,7 +5,8 @@ from consts import *
 from math2 import *
 from dataclasses import dataclass
 from typing import List, Tuple
-from name_generator import generate_name
+from name_generator import generate_name, generate_interstellar_corp_names
+
 
 class SimulationStatus(object):
     _instance = None
@@ -323,14 +324,27 @@ class GlobalGoodStatus:
             new_fluctuation = lerp(self.previous_fluctuation, self.target_fluctuation, self.volatility_timer / self.volatility_duration)
             self.current_fluctuation = clamp(new_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
-def calculate_buy_price_lerp(floor, ceil, supply_ratio) -> float:
+def calculate_buy_price(floor, ceil, supply_ratio):
     """
-    :param floor: float - The lowest price multiplier at maximum surplus.
-    :param ceil: float - The highest price multiplier at maximum deficit.
-    :param supply_ratio: Current Supply divided by Equilibrium Supply
+        :param floor: float - The lowest price multiplier at maximum surplus.
+        :param ceil: float - The highest price multiplier at maximum deficit.
+        :param supply_ratio: Current Supply divided by Equilibrium Supply
 
-    :return: float - The adjusted buy price of the commodity.
-    """
+        :return: float - The adjusted buy price of the commodity.
+        """
+
+    return calculate_buy_price_logistic_impl(floor, ceil, supply_ratio)
+
+def calculate_buy_price_logistic_impl(floor, ceil, supply_ratio):
+    # Logistic deviation insures that bottom and max values can be reasonably reached without absurd Logistic factors values.
+    new_floor = floor - LOGISTIC_DEVIATION
+    new_ceil = ceil + LOGISTIC_DEVIATION
+
+    temp = new_floor + (new_ceil - new_floor) / (1 + math.exp(-BUY_LOGISTIC_FACTOR * (1 - supply_ratio)))
+
+    return clamp(temp, floor, ceil)
+
+def calculate_buy_price_lerp_impl(floor, ceil, supply_ratio) -> float:
     ratio = clamp(supply_ratio, 0, 2)
 
     return lerp(floor, ceil, 1 - (ratio * 0.5))
@@ -813,7 +827,7 @@ class Market:
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
         ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
 
-        return calculate_buy_price_lerp(floor, ceil, ratio)
+        return calculate_buy_price(floor, ceil, ratio)
 
     def calculate_sell_price_point(self, trade_good : str, new_supply_ratio=-1) -> (float, float):
         if trade_good not in TRADE_GOODS_DATA.keys():
@@ -844,12 +858,9 @@ class Market:
         ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
 
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
-        generic_buy_price = calculate_buy_price_lerp(floor, ceil, ratio)
+        generic_buy_price = calculate_buy_price(floor, ceil, ratio)
 
-        # I'm not sure why, but this causes the sell prices to behave exactly like I want, originally used to avoid
-        # intersections of sell prices with minimum buy price when there was a sell order for each buy order.
         sell_price = calculate_sell_price_logistic(generic_buy_price, ratio)
-        #sell_ratio = sell_price / generic_buy_price
 
         return sell_price, generic_buy_price
 
@@ -923,8 +934,9 @@ class Market:
         individual_goods = trade_good_distribution(round(available_supply * individual_share), individual_amount, 0.5)
 
         # --- Generate BUY orders for Interstellar producers ---
+        interstellar_names = generate_interstellar_corp_names(self.race, trade_good, interstellar_amount)
         for i in range(interstellar_amount):
-            corp_name = f"{self.name}-{trade_good}-I{i % 26}"
+            corp_name = interstellar_names[i]
             producer = Producer("Interstellar", corp_name,
                                 random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD))
             buy_order = OrderListing(interstellar_goods[i], producer)
@@ -980,8 +992,8 @@ class Market:
 
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
-            print(f"Price Ranges: {round(floor, 2)}-{round(ceil, 2)} | Price Points: {round(status.buy_price * self.development_score, 2)} "
-                  f"{round(status.sell_price * self.development_score, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
+            print(f"Price Ranges: {round(floor, 2)}-{round(ceil, 2)} | Price Points: {round(status.buy_price, 2)} "
+                  f"{round(status.sell_price, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
                   f"| Supply Ratio: {round(status.total_supply / status.equilibrium_quantity, 2)} "
                   f"| Today's Fluctuation: {round(SimulationStatus().global_good_status[trade_good].current_fluctuation, 2)}")
 

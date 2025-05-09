@@ -9,7 +9,7 @@
         "Vice Goods":       {"base_price": 30,  "base_range": 0.525, "volatility_price":5,  "volatility_duration": 10},
         "Microchips":       {"base_price": 50,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 50},
         "Technology Goods": {"base_price": 60,  "base_range": 0.40, "volatility_price":4,  "volatility_duration": 35},
-        "Luxury Goods":     {"base_price": 150, "base_range": 0.30, "volatility_price":30, "volatility_duration": 30},
+        "Luxury Goods":     {"base_price": 150, "base_range": 0.30, "volatility_price":35, "volatility_duration": 30},
         "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1,  "volatility_duration": 15},
         "Ammunition":       {"base_price": 15,  "base_range": 0.30, "volatility_price":2,  "volatility_duration": 20},
         "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3,  "volatility_duration": 25},
@@ -25,12 +25,12 @@ TRADE_GOOD_ENTERPRISE_RULES = {
     },
     "Synthetics": {
         "base_amount": 3,
-        "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
+        "politics": {"Democracy": 0, "Republic": 1, "Dictatorship": 2, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
         "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 1},
     },
     "Common Minerals": {
         "base_amount": 5,
-        "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -2, "Monarchy": -1, "Anarchy": 1, "Theocracy":1},
+        "politics": {"Democracy": -1, "Republic": 0, "Dictatorship": 2, "Monarchy": 1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
     },
     "Rare Minerals": {
@@ -127,9 +127,11 @@ SUPPLY_CHAINS = {
     "Equipment Parts": {"Microchips", "Refined Minerals"},
 }
 
-# Greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
-BUY_LOGISTIC_FACTOR = 10
-SELL_LOGISTIC_FACTOR = 10
+# The first 3 settings have the greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
+# only used if the implementation of buy prices uses the logistic function
+BUY_LOGISTIC_FACTOR = 3
+SELL_LOGISTIC_FACTOR = 4
+LOGISTIC_DEVIATION = 0.07 # can be set to 0
 
 # changing these doesn't seem to have a great effect on anything
 DEFICIT_SUPPLY_RATIO = 0.75

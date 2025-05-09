@@ -402,6 +402,7 @@ if __name__ == "__main__":
         if command == "dp":
             # Debug prices
             ratio = market.trade_good_status[tg].total_supply / market.trade_good_status[tg].equilibrium_quantity
+            market.simulate_buy_price(tg, ratio, 0)
             market.simulate_sell_price(tg, ratio, Item(tg, 0, [], '', ""))
 
         if command == "help":
