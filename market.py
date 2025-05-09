@@ -355,11 +355,8 @@ def calculate_sell_price_logistic(buy_price, supply_ratio, min_sell_discount=0.4
     :param min_sell_discount: float - The lowest discount (widest gap in surplus).
     :param max_sell_discount: float - The highest discount (smallest gap in deficit).
     :param supply_ratio: Current Supply divided by Equilibrium Supply
-    :param sell_k: Similar to BUY_LOGISTIC_FACTOR, tends to approach min and max_sell_discount when at low and high supply resp.
-    Recommend a value of 5 to 10
-
     """
-    discount = min_sell_discount + (max_sell_discount - min_sell_discount) / (1 + math.exp(-SELL_LOGISTIC_FACTOR * (1 - supply_ratio)))
+    discount = min_sell_discount + (max_sell_discount - min_sell_discount) / (1 + math.exp(-SELL_LOGISTIC_FACTOR * (SELL_CENTER_SHIFT - supply_ratio)))
 
     return buy_price * discount
 

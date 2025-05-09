@@ -1,7 +1,7 @@
 ﻿TRADE_GOODS_DATA = {
         "Essential Goods":  {"base_price": 22,  "base_range": 0.45, "volatility_price":3,  "volatility_duration": 12},
         "Medicine":         {"base_price": 30,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 50},
-        "Organics":         {"base_price": 17,  "base_range": 0.55, "volatility_price":3,  "volatility_duration": 10},
+        "Organics":         {"base_price": 17,  "base_range": 0.50, "volatility_price":3,  "volatility_duration": 10},
         "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 45},
         "Common Minerals":  {"base_price": 9,   "base_range": 0.45, "volatility_price":2,  "volatility_duration": 90},
         "Rare Minerals":    {"base_price": 40,  "base_range": 0.50, "volatility_price":7,  "volatility_duration": 25},
@@ -14,7 +14,7 @@
         "Ammunition":       {"base_price": 15,  "base_range": 0.30, "volatility_price":2,  "volatility_duration": 20},
         "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3,  "volatility_duration": 25},
         "Weapons":          {"base_price": 75,  "base_range": 0.45, "volatility_price":10, "volatility_duration": 20},
-        "Narcotics":        {"base_price": 300, "base_range": 0.50, "volatility_price":60, "volatility_duration": 5}
+        "Narcotics":        {"base_price": 300, "base_range": 0.525, "volatility_price":60, "volatility_duration": 5}
 }
 
 TRADE_GOOD_ENTERPRISE_RULES = {
@@ -129,9 +129,13 @@ SUPPLY_CHAINS = {
 
 # The first 3 settings have the greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
 # only used if the implementation of buy prices uses the logistic function
+# To understand the effect these values have on prices, feel free to run the logistic_price_visualizer.py
 BUY_LOGISTIC_FACTOR = 3
-SELL_LOGISTIC_FACTOR = 4
+SELL_LOGISTIC_FACTOR = 3
 LOGISTIC_DEVIATION = 0.07 # can be set to 0
+
+# ensures sell prices are reasonably calculated
+SELL_CENTER_SHIFT = 1.45
 
 # changing these doesn't seem to have a great effect on anything
 DEFICIT_SUPPLY_RATIO = 0.75

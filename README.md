@@ -26,10 +26,6 @@ Here's an example use
 
 ### Past
 
-Most important file is economy_entity.py
-
-Most important functions are: Market.generate_market(), Market.buy(), Market.sell(), calculate_price_point(), 
-
 # Price factors
 
 Global:
@@ -57,6 +53,21 @@ Market:
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended
 - Client side only implementation on a website
+
+# Technical Overview
+
+Most important file is economy_entity.py
+
+Most important functions are: Market.generate_market(), Market.buy(), Market.sell(), calculate_price_point(),
+
+### Supply and Demand
+
+
+![](images/supply%20demand%20graph.png?)
+
+This graph explains how buy and sell prices are determined by a function of supply ratio. 
+Low supply ratio -> Higher buy prices -> closer sell prices
+High Supply ratio -> Lower buy prices -> distant sell prices
 
 # Data Structures
 ### SimulationStatus:
