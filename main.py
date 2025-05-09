@@ -17,6 +17,18 @@ def regroup_trade_good_statuses(list_of_markets):
 
     return dict(regrouped)
 
+def wait():
+    statuses = regroup_trade_good_statuses(markets)
+    # for market in markets:
+    market.balance_quantities_sell()
+    for trade_good in TRADE_GOODS_DATA:
+        SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
+        #print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
+
+        market.balance_quantities(trade_good)
+        market.drift_prices(trade_good)
+        market.recalculate_prices(trade_good, "", False)
+
 def parse_command():
     processed_input = input("> ").strip().lower()
     groups = processed_input.split()
@@ -29,7 +41,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -60,12 +72,19 @@ def display_help():
           #"as [quantity] [minimum price : optional] - Similar to auto buy, will attempt to auto sell all goods starting by price descending and prioritize lower quality goods to where it can be sold\n")
 
 
-def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minimum_profit=0, verbose=True):
+def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minimum_profit=0, filtered_tg=-1,verbose=True):
     profitable_trades = []
     total = 0
 
+    trade_index = 0
     # expensive operation especially when the amount of markets is large
     for trade_good in TRADE_GOODS_DATA:
+
+        if filtered_tg != -1 and filtered_tg != trade_index:
+            trade_index += 1
+            continue
+
+        trade_index += 1
         for i, sell_market in enumerate(markets):
             sell_order = sell_market.sell_order.get(trade_good)
             if not sell_order or sell_order.quantity <= 0:
@@ -113,7 +132,7 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
                         total_profit += order.quantity * profits[k]
 
 
-                    margin = round(profit_per_unit / buy_weighted_price, 2)
+                    margin = round(profit_per_unit / buy_weighted_price, 3)
                     share = buy_total_quantity / status_buy.available_supply
 
                     trade = {
@@ -129,12 +148,20 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
                         "margin": margin
                     }
                     if margin > minimum_margin and share > minimum_share and total_profit > minimum_profit:
-                        if verbose:
+                        if False and verbose:
                             print(
-                                f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} ({trade['buy_price']}cr) → "
-                                f"Sell @{trade['sell_market']:<12} ({trade['sell_price']}cr) | Qty: {trade['quantity']} | "
-                                f"Profit: {trade['total_profit']}cr | Margin: {round(trade['margin'] * 100, 1)}%")
+                                f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} {trade['buy_price']:>4}cr → "
+                                f"Sell @{trade['sell_market']:<12} {trade['sell_price']:>4}cr | Qty: {trade['quantity']:>5} | "
+                                f"Profit: {trade['total_profit']:>7}cr | Margin: {round(trade['margin'] * 100, 1)}%")
                         profitable_trades.append(trade)
+
+    if verbose:
+        profitable_trades = sorted(profitable_trades, key=lambda t: t["margin"], reverse=False)
+        for trade in profitable_trades:
+            print(
+                f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} {trade['buy_price']:>4}cr → "
+                f"Sell @{trade['sell_market']:<12} {trade['sell_price']:>4}cr | Qty: {trade['quantity']:>5} | "
+                f"Profit: {trade['total_profit']:>7}cr | Margin: {round(trade['margin'] * 100, 1)}%")
 
 
     if len(profitable_trades) > 0:
@@ -149,19 +176,13 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
 
 if __name__ == "__main__":
     simulation_status = SimulationStatus()
-    """Singleton test
-    print(simulation_status.inflation)
-    simulation_status2 = SimulationStatus()
-    simulation_status2.inflation = 2.0
-    print(simulation_status.inflation)
-    #"""
 
     while True:
         setup_input = input(
             "Enter trade difficulty (1-10) and an additional amount of markets to generate (don't recommend more than 50)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, additional_markets = 1, 5
+            trade_difficulty, additional_markets = 1, 50
             break
 
         try:
@@ -310,6 +331,7 @@ if __name__ == "__main__":
             margin = 0.2
             minimum_share = 0.1
             total_gain = 500
+            filtered_tg = -1
             if len(params) > 0:
                 margin = float(params[0])
 
@@ -319,7 +341,10 @@ if __name__ == "__main__":
             if len(params) > 2:
                 total_gain = int(params[2])
 
-            find_profitable_trades(markets, margin, minimum_share, total_gain, True)
+            if len(params) > 3:
+                filtered_tg = int(params[3]) - 1 if int(params[3]) -1 > 0 and int(params[3]) <= len(TRADE_GOODS_DATA.keys()) else -1
+
+            find_profitable_trades(markets, margin, minimum_share, total_gain, filtered_tg,True)
 
         if command == "h":
             market.market_listing(tg)
@@ -349,22 +374,15 @@ if __name__ == "__main__":
         if command == "w":
             days = SimulationStatus().days_elapsed
             if params:
-                SimulationStatus().set_to_day(SimulationStatus().days_elapsed + params[0])
+                for _ in range(int(params[0])):
+                    SimulationStatus().skip_day()
+                    wait()
             else:
                 SimulationStatus().skip_day()
+                wait()
 
-            statuses = regroup_trade_good_statuses(markets)
+
             days = SimulationStatus().days_elapsed - days
-
-            # for market in markets:
-            market.balance_quantities_sell()
-            for trade_good in TRADE_GOODS_DATA:
-                SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
-                print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
-
-                market.balance_quantities(trade_good)
-                market.drift_prices(trade_good)
-                market.recalculate_prices(trade_good, "", False)
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
 
         if command == "t":
@@ -380,6 +398,11 @@ if __name__ == "__main__":
                 print(f"Switched operating to {goods[index]}")
             else:
                 print(f"Invalid trade good index, try 1 - {len(goods)}")
+
+        if command == "dp":
+            # Debug prices
+            ratio = market.trade_good_status[tg].total_supply / market.trade_good_status[tg].equilibrium_quantity
+            market.simulate_sell_price(tg, ratio, Item(tg, 0, [], '', ""))
 
         if command == "help":
             display_help()

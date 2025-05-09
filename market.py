@@ -40,11 +40,7 @@ class SimulationStatus(object):
         self.days_elapsed += 1
         new_inflation = clamp(self.days_elapsed / MAX_INFLATION_DAYS, 0, 1.0)
         self.inflation = lerp(1.0, MAX_INFLATION, new_inflation)
-        print(self.inflation)
-
-    def set_to_day(self, day):
-        self.days_elapsed = day - 1
-        self.skip_day()
+        #print(self.inflation)
 
     def calculate_price_ranges(self, trade_difficulty):
         # only need to be done once
@@ -266,6 +262,8 @@ class MarketGoodStatus:
         # FLUCTUATION SUSCEPTIBILITY - new concept, how much of an effect the global fluctuation has on a trade good
         # Growth - lower susceptibility, Recession - higher susceptibility
         self.fluctuation_multiplier = 1.0
+        # Equilibrium modifier - Allows markets to reject or want certain goods by changing this amount
+        self.equilibrium_modifier = 1.0
 
 class GlobalGoodStatus:
     def __init__(self, max_fluctuation, volatility_duration, base_price):
@@ -325,33 +323,31 @@ class GlobalGoodStatus:
             new_fluctuation = lerp(self.previous_fluctuation, self.target_fluctuation, self.volatility_timer / self.volatility_duration)
             self.current_fluctuation = clamp(new_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
-def calculate_buy_price_logistic(floor, ceil, supply_ratio, buy_k=0.95):
+def calculate_buy_price_lerp(floor, ceil, supply_ratio) -> float:
     """
-    Calculates the price point of a commodity based on a logistic supply-demand curve.
-    Works well with high supply or negative values.
-
     :param floor: float - The lowest price multiplier at maximum surplus.
     :param ceil: float - The highest price multiplier at maximum deficit.
     :param supply_ratio: Current Supply divided by Equilibrium Supply
-    :param buy_k: float - Steepness of the curve (higher values create sharper price transitions).
-    Recommend a value of 0.75 - 1.5
 
     :return: float - The adjusted buy price of the commodity.
     """
-    return floor + (ceil - floor) / (1 + math.exp(-buy_k * (1 - supply_ratio)))
+    ratio = clamp(supply_ratio, 0, 2)
 
-def calculate_sell_price_logistic(buy_price, supply_ratio, min_sell_discount=0.8, max_sell_discount=0.98, sell_k=10):
+    return lerp(floor, ceil, 1 - (ratio * 0.5))
+
+def calculate_sell_price_logistic(buy_price, supply_ratio, min_sell_discount=0.4, max_sell_discount=0.985):
     """
     :param buy_price: logistic modifier price of the commodity.
     :param min_sell_discount: float - The lowest discount (widest gap in surplus).
     :param max_sell_discount: float - The highest discount (smallest gap in deficit).
     :param supply_ratio: Current Supply divided by Equilibrium Supply
-    :param sell_k: Similar to buy_k, tends to approach min and max_sell_discount when at low and high supply resp.
+    :param sell_k: Similar to BUY_LOGISTIC_FACTOR, tends to approach min and max_sell_discount when at low and high supply resp.
     Recommend a value of 5 to 10
 
     """
-    return buy_price * min_sell_discount + (max_sell_discount - min_sell_discount) / (
-            1 + math.exp(-sell_k * (1 - supply_ratio)))
+    discount = min_sell_discount + (max_sell_discount - min_sell_discount) / (1 + math.exp(-SELL_LOGISTIC_FACTOR * (1 - supply_ratio)))
+
+    return buy_price * discount
 
 def trade_good_distribution(total_goods : int, num_slots : int, spread_multiplier=0.75):
     """
@@ -543,6 +539,7 @@ class Market:
             amount_remaining -= quantity_removed
 
         self.trade_good_status[trade_good].total_supply -= amount
+        self.trade_good_status[trade_good].last_buy_supply, self.trade_good_status[trade_good].last_sell_supply = self.trade_good_status[trade_good].total_supply, self.trade_good_status[trade_good].total_supply
         self.recalculate_prices(trade_good, "Sell", False)
         self.update_available_supply(trade_good)
 
@@ -794,15 +791,15 @@ class Market:
         max_base_range = 0.6 # Max value from TRADE GOODS DATA
         range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / max_base_range
 
-        positive_ee_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier >= 1.0 else 0
-        negative_ee_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier < 1.0 else 0
+        positive_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier >= 1.0 else 0
+        negative_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier < 1.0 else 0
 
         # if these modifiers feel like they're not doing anything to affect the price, raise their maximum range
         positive_development_modifier = abs((1 - self.development_score)) if self.development_score >= 1.0 else 0
         negative_development_modifier = abs((1 - self.development_score)) if self.development_score < 1.0 else 0
 
-        positive_modifiers = abs((positive_ee_modifier + positive_development_modifier) * diff * range_scaling_multiplier)
-        negative_modifiers = abs((negative_ee_modifier + negative_development_modifier) * diff * range_scaling_multiplier)
+        positive_modifiers = abs((positive_producer_modifier + positive_development_modifier) * diff * range_scaling_multiplier)
+        negative_modifiers = abs((negative_producer_modifier + negative_development_modifier) * diff * range_scaling_multiplier)
 
         # this balances out modifiers so that only one of them is applied at the end, pushing the price in a direction
         if positive_modifiers >= negative_modifiers:
@@ -816,7 +813,7 @@ class Market:
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
         ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
 
-        return calculate_buy_price_logistic(floor, ceil, ratio)
+        return calculate_buy_price_lerp(floor, ceil, ratio)
 
     def calculate_sell_price_point(self, trade_good : str, new_supply_ratio=-1) -> (float, float):
         if trade_good not in TRADE_GOODS_DATA.keys():
@@ -847,14 +844,14 @@ class Market:
         ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
 
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
-        generic_buy_price = calculate_buy_price_logistic(floor, ceil, ratio)
+        generic_buy_price = calculate_buy_price_lerp(floor, ceil, ratio)
 
         # I'm not sure why, but this causes the sell prices to behave exactly like I want, originally used to avoid
         # intersections of sell prices with minimum buy price when there was a sell order for each buy order.
         sell_price = calculate_sell_price_logistic(generic_buy_price, ratio)
-        sell_ratio = sell_price / generic_buy_price
+        #sell_ratio = sell_price / generic_buy_price
 
-        return sell_price * sell_ratio, generic_buy_price
+        return sell_price, generic_buy_price
 
     @staticmethod
     def generate_market(market_name, race, market_size, development_score, political_system, development_type):

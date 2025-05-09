@@ -1,20 +1,20 @@
 ﻿TRADE_GOODS_DATA = {
-        "Essential Goods":  {"base_price": 22,  "base_range": 0.50, "volatility_price":3,  "volatility_duration": 12},
-        "Medicine":         {"base_price": 30,  "base_range": 0.40, "volatility_price":1,  "volatility_duration": 50},
+        "Essential Goods":  {"base_price": 22,  "base_range": 0.40, "volatility_price":3,  "volatility_duration": 12},
+        "Medicine":         {"base_price": 30,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 50},
         "Organics":         {"base_price": 17,  "base_range": 0.55, "volatility_price":3,  "volatility_duration": 10},
         "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 45},
         "Common Minerals":  {"base_price": 9,   "base_range": 0.40, "volatility_price":2,  "volatility_duration": 90},
-        "Rare Minerals":    {"base_price": 40,  "base_range": 0.60, "volatility_price":7,  "volatility_duration": 25},
-        "Refined Minerals": {"base_price": 25,  "base_range": 0.40, "volatility_price":3,  "volatility_duration": 50},
-        "Vice Goods":       {"base_price": 30,  "base_range": 0.40, "volatility_price":5,  "volatility_duration": 10},
-        "Microchips":       {"base_price": 50,  "base_range": 0.40, "volatility_price":4,  "volatility_duration": 50},
-        "Technology Goods": {"base_price": 60,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 35},
+        "Rare Minerals":    {"base_price": 40,  "base_range": 0.50, "volatility_price":7,  "volatility_duration": 25},
+        "Refined Minerals": {"base_price": 25,  "base_range": 0.35, "volatility_price":3,  "volatility_duration": 50},
+        "Vice Goods":       {"base_price": 30,  "base_range": 0.50, "volatility_price":5,  "volatility_duration": 10},
+        "Microchips":       {"base_price": 50,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 50},
+        "Technology Goods": {"base_price": 60,  "base_range": 0.40, "volatility_price":4,  "volatility_duration": 35},
         "Luxury Goods":     {"base_price": 150, "base_range": 0.25, "volatility_price":30, "volatility_duration": 30},
         "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1,  "volatility_duration": 15},
-        "Ammunition":       {"base_price": 15,  "base_range": 0.20, "volatility_price":2,  "volatility_duration": 20},
+        "Ammunition":       {"base_price": 15,  "base_range": 0.30, "volatility_price":2,  "volatility_duration": 20},
         "Equipment Parts":  {"base_price": 90,  "base_range": 0.15, "volatility_price":3,  "volatility_duration": 25},
-        "Weapons":          {"base_price": 75,  "base_range": 0.33, "volatility_price":10, "volatility_duration": 20},
-        "Narcotics":        {"base_price": 300, "base_range": 0.45, "volatility_price":60, "volatility_duration": 5}
+        "Weapons":          {"base_price": 75,  "base_range": 0.45, "volatility_price":10, "volatility_duration": 20},
+        "Narcotics":        {"base_price": 300, "base_range": 0.5, "volatility_price":60, "volatility_duration": 5}
 }
 
 TRADE_GOOD_ENTERPRISE_RULES = {
@@ -126,6 +126,10 @@ SUPPLY_CHAINS = {
 
     "Equipment Parts": {"Microchips", "Refined Minerals"},
 }
+
+# Greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
+BUY_LOGISTIC_FACTOR = 10
+SELL_LOGISTIC_FACTOR = 10
 
 # changing these doesn't seem to have a great effect on anything
 DEFICIT_SUPPLY_RATIO = 0.75
