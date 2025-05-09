@@ -342,7 +342,7 @@ if __name__ == "__main__":
                 total_gain = int(params[2])
 
             if len(params) > 3:
-                filtered_tg = int(params[3]) - 1 if int(params[3]) -1 > 0 and int(params[3]) <= len(TRADE_GOODS_DATA.keys()) else -1
+                filtered_tg = int(params[3]) - 1 if 0 < int(params[3]) <= len(TRADE_GOODS_DATA.keys()) else -1
 
             find_profitable_trades(markets, margin, minimum_share, total_gain, filtered_tg,True)
 
