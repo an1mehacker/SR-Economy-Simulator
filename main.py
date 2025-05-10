@@ -52,6 +52,8 @@ def parse_command():
 def display_help():
     print("\n"
         "Main Commands\n"
+        "f [profit margin : optional] [supply share : optional] [total profit : optional] - find profitable trades with the specified parameters, e.g. f 0.2 0.1 1000\n"
+        "m [market_id : optional] - display existing markets and switch to another market if index is provided\n"
         "h - home screen, show summary listing for all trade goods on the market\n"
         "t [trade good index] - to switch to another trade good\n"
         "help - show this command list\n"
@@ -59,13 +61,11 @@ def display_help():
         "w [number of days: optional] - skip time to see changes in price\n\n"
         "Operation commands\n"
         "l - show detailed listing of the selected trade good. Can be appended to the first word of a command to execute both commands like bl or sl or abl \n"
-        "b [corporation index] [quantity] - to buy\n"
-        "s [corporation index] [quantity] - to sell\n"
-        "a [corporation index] [quantity] - debug command, to add goods to a corporation\n"
+        "b [producer index] [quantity] - to buy\n"
+        "s [producer index] [quantity] - to sell\n"
+        "a [producer index] [quantity] - debug command, to add goods to a corporation\n"
         "r [quantity] - debug command, to remove goods from the market\n"
-        "i - show inventory\n"
-        "m [market_id : optional] - display existing markets and switch to another market if index is provided\n"
-        "f [profit margin : optional] [supply share : optional] [total profit : optional] - find profitable trades with the specified parameters, e.g. f 0.2 0.1 1000\n")
+        "i - show inventory\n")
 
           #"ab [quantity] [maximum price : optional] [minimum quality : optional] - Attempts to auto buy the selected quantity of goods starting by price ascending. Prioritizes higher quality goods when there's a price tie.\n"
           #"Can buy from multiple corporations. minimum quality default is 'C'. Will stop when quantity is reached or if there are no quantities available or if there are no goods with the minimum quality\n"
@@ -182,7 +182,7 @@ if __name__ == "__main__":
             "Enter trade difficulty (1-10) and an additional amount of markets to generate (don't recommend more than 50)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
-            trade_difficulty, additional_markets = 1, 50
+            trade_difficulty, additional_markets = 1, 5
             break
 
         try:

@@ -560,14 +560,14 @@ class Market:
         order = self.buy_orders[trade_good][order_index]
         price_point = self.calculate_buy_price_point(order, trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().trade_difficulty_status[trade_good]["base_price"],
+                                     SimulationStatus().trade_difficulty_status[trade_good]["price_range"],
                                      price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_buy_price_bonus(order, trade_good))
 
     def simulate_sell_price(self, trade_good, new_supply_ratio, item : Item) -> int:
-        price_point = self.calculate_sell_price_point(trade_good, new_supply_ratio)
+        price_point, _ = self.calculate_sell_price_point(trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().trade_difficulty_status[trade_good]["base_price"],
+                                     SimulationStatus().trade_difficulty_status[trade_good]["price_range"],
                                      price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_sell_price_bonus(item, trade_good))
 
@@ -799,8 +799,7 @@ class Market:
         status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
-        max_base_range = 0.6 # Max value from TRADE GOODS DATA
-        range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / max_base_range
+        range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / MAX_RANGE
 
         positive_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier >= 1.0 else 0
         negative_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier < 1.0 else 0
@@ -834,8 +833,7 @@ class Market:
         status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
-        max_base_range = 0.6 # Max value from TRADE GOODS DATA
-        range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / max_base_range
+        range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / MAX_RANGE
 
         # if these modifiers feel like they're not doing anything to affect the price, raise their maximum range
         positive_development_modifier = abs((1 - self.development_score)) if self.development_score >= 1.0 else 0
