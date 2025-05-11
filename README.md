@@ -42,13 +42,12 @@ Market:
   * Supply and Demand
 
 # Planned features
-- Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
+- Profit indicator when selling that displays profit margins 
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
 - Add interaction with Trade Good Legality and Essential status
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Add some kind of supply chains where to produce certain goods you need others
-- Profit indicator when selling that displays profit margins 
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended
 - Client side only implementation on a website
