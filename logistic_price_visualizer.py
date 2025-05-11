@@ -3,6 +3,9 @@ import numpy as np
 from dash import Dash, dcc, html, Input, Output
 import plotly.graph_objs as go
 
+from config import *
+
+
 def clamp(value, lower, upper):
     return max(lower, min(value, upper))
 
@@ -31,17 +34,17 @@ app.layout = html.Div([
             html.Label('Ceil'),
             dcc.Slider(1.05, 2, 0.05, value=1.5, marks={1.05: '1.05', 2: '2'}, tooltip={"placement": "bottom", "always_visible": False}, id='ceil-slider'),
 
-            html.Label('Deviation'),
-            dcc.Slider(0, 0.5, 0.01, value=0.07, marks={0: '0.0', 0.5: '0.5'}, tooltip={"placement": "bottom", "always_visible": False}, id='deviation-slider'),
+            html.Label('Buy Cut-off'),
+            dcc.Slider(0, 0.5, 0.01, value=LOGISTIC_CUTOFF, marks={0: '0.0', 0.5: '0.5'}, tooltip={"placement": "bottom", "always_visible": False}, id='deviation-slider'),
         ], style={"flex": 1, "padding": "10px"}),
 
         html.Div([
             html.Label('Buy Center Point'),
-            dcc.Slider(0.5, 1.5, 0.05, value=1.0, marks={0.5: '0.5', 1.5: '1.5'},
+            dcc.Slider(0, 2, 0.05, value=1.0, marks={0: '0', 2: '2'},
                        tooltip={"placement": "bottom", "always_visible": False}, id='buy-center-point'),
 
             html.Label('Buy Logistic Factor'),
-            dcc.Slider(0.1, 10, 0.1, value=3, marks={0: '1', 10: '10'}, tooltip={"placement": "bottom", "always_visible": False}, id='factor-slider'),
+            dcc.Slider(0.1, 10, 0.1, value=BUY_LOGISTIC_FACTOR, marks={0: '1', 10: '10'}, tooltip={"placement": "bottom", "always_visible": False}, id='factor-slider'),
 
             html.Label('Base Price Multiplier'),
             dcc.Slider(1, 500, 1, value=1, marks={1: '1', 500: '500'}, tooltip={"placement": "bottom", "always_visible": False},
@@ -49,16 +52,16 @@ app.layout = html.Div([
 
         html.Div([
             html.Label('Sell Center Point'),
-            dcc.Slider(0.5, 1.5, 0.05, value=1.0, marks={0.5: '0.5', 1.5: '1.5'}, tooltip={"placement": "bottom", "always_visible": False}, id='sell-center-point'),
+            dcc.Slider(0    , 2, 0.05, value=SELL_CENTER_SHIFT, marks={0: '0', 2: '2'}, tooltip={"placement": "bottom", "always_visible": False}, id='sell-center-point'),
 
             html.Label('Sell Logistic Factor'),
-            dcc.Slider(0.1, 10, 0.1, value=4, marks={0: '0', 10: '10'}, tooltip={"placement": "bottom", "always_visible": False}, id='sell-factor-slider'),
+            dcc.Slider(0.1, 10, 0.1, value=SELL_LOGISTIC_FACTOR, marks={0: '0', 10: '10'}, tooltip={"placement": "bottom", "always_visible": False}, id='sell-factor-slider'),
 
             html.Label('Min Sell Discount'),
-            dcc.Slider(0.1, 0.9, 0.01, value=0.4, marks={0.1: '0', 0.9: '0.9'}, tooltip={"placement": "bottom", "always_visible": False}, id='min-sell-discount-slider'),
+            dcc.Slider(0.1, 0.9, 0.01, value=SELL_MIN_DISCOUNT, marks={0.1: '0', 0.9: '0.9'}, tooltip={"placement": "bottom", "always_visible": False}, id='min-sell-discount-slider'),
 
             html.Label('Max Sell Discount'),
-            dcc.Slider(0.9, 1.0, 0.001, value=0.985, marks={0.9: '0.9', 1.00: '1.0'}, tooltip={"placement": "bottom", "always_visible": False}, id='max-sell-discount-slider'),
+            dcc.Slider(0.9, 1.0, 0.001, value=SELL_MAX_DISCOUNT, marks={0.9: '0.9', 1.00: '1.0'}, tooltip={"placement": "bottom", "always_visible": False}, id='max-sell-discount-slider'),
         ], style={"flex": 1, "padding": "10px"}),
     ], style={"display": "flex", "flexWrap": "wrap", "maxWidth": "1000px", "margin": "0 auto"}),
 ])

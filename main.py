@@ -41,7 +41,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp", "do"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -398,6 +398,12 @@ if __name__ == "__main__":
                 print(f"Switched operating to {goods[index]}")
             else:
                 print(f"Invalid trade good index, try 1 - {len(goods)}")
+
+        if command == "do":
+            # Debug producer
+            order_index = int(params[0])
+            order = market.buy_orders[tg][order_index]
+            print(order)
 
         if command == "dp":
             # Debug prices

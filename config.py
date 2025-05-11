@@ -129,13 +129,19 @@ SUPPLY_CHAINS = {
     "Equipment Parts": {"Microchips", "Refined Minerals"},
 }
 
-# The first 4 settings have the greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
+# General Rules
+
+# The first 3 settings have the greatest effect on amount of profitable trades, affects minimum and maximum prices of trade goods
 # only used if the implementation of buy prices uses the logistic function
 # To understand the effect these values have on prices, feel free to run the logistic_price_visualizer.py
 BUY_LOGISTIC_FACTOR = 3
-SELL_LOGISTIC_FACTOR = 4
-LOGISTIC_DEVIATION = 0.05 # ensures min and max prices can be reasonable reached
-SELL_CENTER_SHIFT = 1.3 # ensures sell prices are not too far away from buy prices
+SELL_LOGISTIC_FACTOR = 2.9
+LOGISTIC_CUTOFF = 0.07 # ensures min and max prices can be realistically reached
+
+# Sell
+SELL_CENTER_SHIFT = 1.6 # ensures sell prices are not too far away from buy prices, keep the values between 1.0-2.0
+SELL_MIN_DISCOUNT = 0.15   # lowest discount (widest gap in surplus)
+SELL_MAX_DISCOUNT = 1 # highest discount (smallest gap in deficit)
 
 # changing these doesn't seem to have a great effect on anything
 DEFICIT_SUPPLY_RATIO = 0.75
@@ -148,7 +154,9 @@ MAX_INFLATION_DAYS = 10000
 MAX_INFLATION = 4.0
 
 # Market Generation Rules
-LOWER_DEVELOPMENT_SCORE = 0.8 # higher interval - lower average profits, small effect
+
+# higher interval - lower average profits, small effect
+LOWER_DEVELOPMENT_SCORE = 0.8
 UPPER_DEVELOPMENT_SCORE = 1.2
 
 BASE_TRADE_GOODS_AMOUNT = 20000 # increases the amount of large volume trades and decreases their average profitability

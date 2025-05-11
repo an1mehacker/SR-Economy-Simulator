@@ -22,9 +22,10 @@ Here's an example use
 # Version history
 
 ### Current
-0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
+0.2 - General price balancing, code stability, more features (like finding trades) and improvements
 
 ### Past
+0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
 
 # Price factors
 
@@ -44,11 +45,9 @@ Market:
 - Change breakpoints for every 25% of equilibrium from 0 to 200% instead of at fixed values
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
-- Buying from one Market and selling it to another and see the changes in price
 - Add interaction with Trade Good Legality and Essential status
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Add some kind of supply chains where to produce certain goods you need others
-- Procedurally generate markets based on several factors like culture, political system and population
 - Profit indicator when selling that displays profit margins 
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended

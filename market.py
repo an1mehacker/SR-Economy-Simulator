@@ -1,11 +1,11 @@
 ﻿import math
 import random
 
-from consts import *
+from config import *
 from math2 import *
 from dataclasses import dataclass
 from typing import List, Tuple
-from name_generator import generate_name, generate_interstellar_corp_names
+from name_generator import generate_name, generate_interstellar_corp_names, INTERSTELLAR_CORPOS_BY_RACE
 
 
 class SimulationStatus(object):
@@ -35,7 +35,22 @@ class SimulationStatus(object):
             for key, value in TRADE_GOODS_DATA.items()
         }
 
+        self.interstellar_corp_price_multipliers = {}
+        self.generate_all_corp_price_multipliers()
+
         SimulationStatus._initialized = True
+
+    def generate_all_corp_price_multipliers(self):
+        for race_dict in INTERSTELLAR_CORPOS_BY_RACE.values():
+            for corp_name in race_dict.values():
+                if corp_name not in self.interstellar_corp_price_multipliers:
+                    self.interstellar_corp_price_multipliers[corp_name] = random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD)
+
+    def get_corp_price_multiplier(self, corp_name):
+        if corp_name in self.interstellar_corp_price_multipliers:
+            return self.interstellar_corp_price_multipliers[corp_name]
+
+        return -1
 
     def skip_day(self):
         self.days_elapsed += 1
@@ -337,8 +352,8 @@ def calculate_buy_price(floor, ceil, supply_ratio):
 
 def calculate_buy_price_logistic_impl(floor, ceil, supply_ratio):
     # Logistic deviation insures that bottom and max values can be reasonably reached without absurd Logistic factors values.
-    new_floor = floor - LOGISTIC_DEVIATION
-    new_ceil = ceil + LOGISTIC_DEVIATION
+    new_floor = floor - LOGISTIC_CUTOFF
+    new_ceil = ceil + LOGISTIC_CUTOFF
 
     temp = new_floor + (new_ceil - new_floor) / (1 + math.exp(-BUY_LOGISTIC_FACTOR * (1 - supply_ratio)))
 
@@ -349,14 +364,12 @@ def calculate_buy_price_lerp_impl(floor, ceil, supply_ratio) -> float:
 
     return lerp(floor, ceil, 1 - (ratio * 0.5))
 
-def calculate_sell_price_logistic(buy_price, supply_ratio, min_sell_discount=0.4, max_sell_discount=0.985):
+def calculate_sell_price_logistic(buy_price, supply_ratio):
     """
     :param buy_price: logistic modifier price of the commodity.
-    :param min_sell_discount: float - The lowest discount (widest gap in surplus).
-    :param max_sell_discount: float - The highest discount (smallest gap in deficit).
     :param supply_ratio: Current Supply divided by Equilibrium Supply
     """
-    discount = min_sell_discount + (max_sell_discount - min_sell_discount) / (1 + math.exp(-SELL_LOGISTIC_FACTOR * (SELL_CENTER_SHIFT - supply_ratio)))
+    discount = SELL_MIN_DISCOUNT + (SELL_MAX_DISCOUNT - SELL_MIN_DISCOUNT) / (1 + math.exp(-SELL_LOGISTIC_FACTOR * (SELL_CENTER_SHIFT - supply_ratio)))
 
     return buy_price * discount
 
@@ -932,8 +945,7 @@ class Market:
         interstellar_names = generate_interstellar_corp_names(self.race, trade_good, interstellar_amount)
         for i in range(interstellar_amount):
             corp_name = interstellar_names[i]
-            producer = Producer("Interstellar", corp_name,
-                                random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD))
+            producer = Producer("Interstellar", corp_name, SimulationStatus().get_corp_price_multiplier(corp_name))
             buy_order = OrderListing(interstellar_goods[i], producer)
             buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
