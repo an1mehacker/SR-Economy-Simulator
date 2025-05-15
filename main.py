@@ -1,5 +1,4 @@
-import random
-
+import tracemalloc
 from market import *
 from math2 import clamp
 from collections import defaultdict
@@ -41,7 +40,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp", "do"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp", "do", "set"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -175,6 +174,7 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
 
 
 if __name__ == "__main__":
+    tracemalloc.start()
     simulation_status = SimulationStatus()
 
     while True:
@@ -194,7 +194,6 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input, enter something like '2 5' or press Enter for default values (1 5)")
 
-    simulation_status.trade_difficulty = trade_difficulty
     SimulationStatus().calculate_price_ranges(trade_difficulty)
 
     markets = []
@@ -223,8 +222,14 @@ if __name__ == "__main__":
                                               random.choice(political_systems),
                                               random.choice(development_types)))
 
+
     user = Actor(10000)
     market.market_listing(tg)
+
+    current, peak = tracemalloc.get_traced_memory()
+    print(f"Current memory usage: {current / 1024 / 1024:.1f} MB")
+    print(f"Peak usage: {peak / 1024 / 1024:.1f} MB")
+    tracemalloc.stop()
     print("\nType help for complete list of commands\n")
     command, params = parse_command()
 
@@ -255,6 +260,7 @@ if __name__ == "__main__":
                 continue
 
             user.add_item(item)
+            user.money -= item.total_value
             if len(item.breakdown_prices) == 1:
                 print(f"You bought {item.total_quantity} {tg} from {item.producer.name} for a total of {item.total_value}cr!")
                 command, params = parse_command()
@@ -265,7 +271,6 @@ if __name__ == "__main__":
             for q, p in brackets:
                 print(f"You bought {q} {tg} at {p}cr each")
 
-            user.money -= item.total_value
             print(f"Totaling {item.total_quantity} {tg} from {item.producer.name} for {item.total_value}cr! Your money: {user.money}cr")
 
 
@@ -303,6 +308,7 @@ if __name__ == "__main__":
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
 
             user.remove_item(item) # TODO: market should only sell if this doesn't fail as this executes anyway
+            user.money += item.total_value
             if len(item.breakdown_prices) == 1:
                 print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr!")
                 command, params = parse_command()
@@ -311,7 +317,6 @@ if __name__ == "__main__":
             for q, p in item.breakdown_prices:
                 print(f"You sold {q} {tg} at {p}cr each")
 
-            user.money += item.total_value
             print(f"Totaling {item.total_quantity} {tg} for {item.total_value}cr! Your money: {user.money}cr")
 
         if command in ["a", "al"]:
@@ -410,6 +415,23 @@ if __name__ == "__main__":
             ratio = market.trade_good_status[tg].total_supply / market.trade_good_status[tg].equilibrium_quantity
             market.simulate_buy_price(tg, ratio, 0)
             market.simulate_sell_price(tg, ratio, Item(tg, 0, [], '', ""))
+
+        if command == "set":
+            if not params or len(params) < 2:
+                print(f"Usage: set [eq/sup/bp/sp] [value]")
+                command, params = parse_command()
+                continue
+
+            field = params[0]
+            value = params[1]
+
+            if field == "eq":
+                market.trade_good_status[tg].equilibrium_quantity = value
+                market.sell_order[tg].quantity = max(2 * market.trade_good_status[tg].equilibrium_quantity - market.trade_good_status[tg].total_supply, 0)
+                print(f"Changed {tg}' Equilibrium amount to {value}")
+
+            market.update_available_supply(tg)
+            market.recalculate_prices(tg, "", False)
 
         if command == "help":
             display_help()

@@ -21,7 +21,6 @@ class SimulationStatus(object):
         if self._initialized:
             return  # Already initialized, skip
 
-        self.trade_difficulty = 1
         self.trade_difficulty_multiplier = 1.0
         self.inflation = 1.0
         self.days_elapsed = 0
@@ -36,15 +35,12 @@ class SimulationStatus(object):
         }
 
         self.interstellar_corp_price_multipliers = {}
-        self.generate_all_corp_price_multipliers()
-
-        SimulationStatus._initialized = True
-
-    def generate_all_corp_price_multipliers(self):
         for race_dict in INTERSTELLAR_CORPOS_BY_RACE.values():
             for corp_name in race_dict.values():
                 if corp_name not in self.interstellar_corp_price_multipliers:
                     self.interstellar_corp_price_multipliers[corp_name] = random.uniform(1 - INTERSTELLAR_PRICE_SPREAD, 1 + INTERSTELLAR_PRICE_SPREAD)
+
+        SimulationStatus._initialized = True
 
     def get_corp_price_multiplier(self, corp_name):
         if corp_name in self.interstellar_corp_price_multipliers:
@@ -632,16 +628,18 @@ class Market:
             order_breakpoint_prices = [before_cost]
 
             breakpoint_total -= quantity
+            quantity_made = quantity_operated
 
             print(f"Breakpoint reached - recalculating {operation} orders at {breakpoints[-1]} supply!")
             if len(breakpoints) > 1:
                 for i, breakpoint_q in enumerate(breakpoints):
                     if i == len(breakpoints) - 1:
-                        quantity = breakpoints[-1] - status.total_supply
+                        quantity = quantity_operated - sum(order_breakpoint_quantities)
                         continue
 
-                    quantity = breakpoint_total - breakpoints[i + 1]
+                    quantity = breakpoints[i + 1] - min(breakpoints[i], quantity_made)
                     breakpoint_total -= quantity
+                    quantity_made -= quantity
 
                     # we only need to get the calculated prices, no need to recalculate for every reached breakpoint
 

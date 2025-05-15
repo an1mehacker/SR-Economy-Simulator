@@ -159,7 +159,7 @@ MAX_INFLATION = 4.0
 LOWER_DEVELOPMENT_SCORE = 0.8
 UPPER_DEVELOPMENT_SCORE = 1.2
 
-BASE_TRADE_GOODS_AMOUNT = 20000 # increases the amount of large volume trades and decreases their average profitability
+BASE_TRADE_GOODS_AMOUNT = 25000 # increases equilibrium, the amount of large volume trades, and decreases their average profitability
 EQUILIBRIUM_VARIANCE = 0.25 # doesn't seem to have a great effect on anything
 LOW_SUPPLY_SPREAD = -0.25 # greatly affects amount of profitable trades and profitability
 HIGH_SUPPLY_SPREAD = 2.25 # greatly affects amount of profitable trades and profitability
@@ -168,98 +168,3 @@ HIGH_SUPPLY_SPREAD = 2.25 # greatly affects amount of profitable trades and prof
 INTERSTELLAR_PRICE_SPREAD = 0.20
 ENTERPRISE_PRICE_SPREAD = 0.25
 INDIVIDUAL_PRICE_SPREAD = 0.40
-
-"""
-f 0 0 5000 (0.2%)
-f 0 0 10000 (0.1%)
-f 0.2 0.1 (0.4%)
-
-# Market Generation
-BASE_TRADE_GOODS_AMOUNT = 25000
-EQUILIBRIUM_VARIANCE = 0.5
-LOW_SUPPLY_SPREAD = -0.5
-HIGH_SUPPLY_SPREAD = 2.5
-
-INTERSTELLAR_PRICE_SPREAD = 0.20
-ENTERPRISE_PRICE_SPREAD = 0.25
-INDIVIDUAL_PRICE_SPREAD = 0.40
-"""
-
-"""
-f 0 0 5000 (0.2%)
-f 0 0 10000 (0.1%)
-f 0.2 0.1 (0.4%)
-
-DEFICIT_SUPPLY_RATIO = 0.75
-MAJOR_DEFICIT_SUPPLY_RATIO = 0.5
-SURPLUS_SUPPLY_RATIO = 1.5
-MAJOR_SURPLUS_SUPPLY_RATIO = 2.5
-
-# it takes 10 000 days to reach 4.0 inflation
-MAX_INFLATION_DAYS = 10000
-MAX_INFLATION = 4.0
-
-# Market Generation
-BASE_TRADE_GOODS_AMOUNT = 25000
-EQUILIBRIUM_VARIANCE = 0.5
-LOW_SUPPLY_SPREAD = -0.5
-HIGH_SUPPLY_SPREAD = 2.5
-
-INTERSTELLAR_PRICE_SPREAD = 0.20
-ENTERPRISE_PRICE_SPREAD = 0.25
-INDIVIDUAL_PRICE_SPREAD = 0.40"""
-
-"""
-f 0 0 5000 (1.5%)
-f 0 0 10000 (0.7%)
-f 0.2 0.1 (2.5%)
-
-DEFICIT_SUPPLY_RATIO = 0.75
-MAJOR_DEFICIT_SUPPLY_RATIO = 0.2
-SURPLUS_SUPPLY_RATIO = 1.25
-MAJOR_SURPLUS_SUPPLY_RATIO = 2
-
-# Market Generation
-BASE_TRADE_GOODS_AMOUNT = 25000
-EQUILIBRIUM_VARIANCE = 0.5
-LOW_SUPPLY_SPREAD = -3
-HIGH_SUPPLY_SPREAD = 5"""
-
-"""
-1.4 - 30.9
-0.7 - 35.4
-0.7 - 33.9
-
-BASE_TRADE_GOODS_AMOUNT = 100000 # increases the amount of large volume trades but not their
-EQUILIBRIUM_VARIANCE = 0.5"""
-
-"""
-0.3 - 36.6
-0.1 - 43.7
-0.7 - 32.7
-
-BASE_TRADE_GOODS_AMOUNT = 30000 # increases the amount of large volume trades but not their
-EQUILIBRIUM_VARIANCE = 0.5"""
-
-"""
-0.4 - 37.8
-0.1 - 43.1
-0.7 - 33.9
-
-BASE_TRADE_GOODS_AMOUNT = 30000 # increases the amount of large volume trades but not their
-EQUILIBRIUM_VARIANCE = 0.05"""
-"""
-0.6 40.8
-0.2  47.9
-1.1 36.8
-# Market Generation Rules
-LOWER_DEVELOPMENT_SCORE = 0.7
-UPPER_DEVELOPMENT_SCORE = 1.3"""
-
-"""
-0.7 42.3
-0.3 50.0
-1.1 36.7
-
-LOWER_DEVELOPMENT_SCORE = 0.9
-UPPER_DEVELOPMENT_SCORE = 1.1"""
