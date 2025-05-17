@@ -24,6 +24,10 @@ Here's an example use
 ### Current
 0.2 - General price balancing, code stability, more features (like finding trades) and improvements
 
+### Future
+0.3 - Passive trade good production, Producer Bonuses
+0.4 - Growths and Recessions, NPC trading
+
 ### Past
 0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
 
@@ -42,11 +46,12 @@ Market:
   * Supply and Demand
 
 # Planned features
-- Profit indicator when selling that displays profit margins 
+- Passive production and consumption of trade goods
+- Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
+- NPCs that trade and compete with you
 - Add interaction with Trade Good Legality and Essential status
-- Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Add some kind of supply chains where to produce certain goods you need others
 - Price restrictions based on market's conditions
 - Unit testing to make sure all these complex calculations and interactions are actually behaving as intended

@@ -110,6 +110,9 @@ class Item:
     def calculate_total_cost(self) -> int:
         return sum(q * p for q, p in self.breakdown_prices)
 
+    def get_profit(self):
+        return self.total_value
+
     def is_equal(self, other: 'Item') -> bool:
         return self.trade_good == other.trade_good and self.market_of_origin == other.market_of_origin and self.producer.name == other.producer.name
 
@@ -259,7 +262,6 @@ class MarketGoodStatus:
         self.total_supply = total_supply
         self.available_supply = 0
         self.enterprise_amount = enterprise_amount
-        self.enterprise_text = ""
 
         # these 2 variables are what is gonna be used to calculate new prices every day. Over time, these values are
         # drifting towards the current supply. When recalculating due to breakpoints, these values change, making big
@@ -274,8 +276,11 @@ class MarketGoodStatus:
         # FLUCTUATION SUSCEPTIBILITY - new concept, how much of an effect the global fluctuation has on a trade good
         # Growth - lower susceptibility, Recession - higher susceptibility
         self.fluctuation_multiplier = 1.0
-        # Equilibrium modifier - Allows markets to reject or want certain goods by changing this amount
-        self.equilibrium_modifier = 1.0
+        # Equilibrium friction - Allows markets to reject or want certain goods by changing this amount
+        self.equilibrium_friction = 1.0
+
+    def get_equilibrium(self):
+        return self.equilibrium_quantity * self.equilibrium_friction
 
 class GlobalGoodStatus:
     def __init__(self, max_fluctuation, volatility_duration, base_price):
@@ -525,10 +530,10 @@ class Market:
 
     def update_available_supply(self, trade_good):
         status = self.trade_good_status[trade_good]
-        new_supply = status.total_supply - bracketed_pricing(status.equilibrium_quantity)[1]
+        new_supply = status.total_supply - bracketed_pricing(status.get_equilibrium())[1]
         self.trade_good_status[trade_good].available_supply = new_supply if new_supply >= 0 else 0
 
-        ratio = status.total_supply / status.equilibrium_quantity
+        ratio = status.total_supply / status.get_equilibrium()
         if DEFICIT_SUPPLY_RATIO < ratio < SURPLUS_SUPPLY_RATIO:
             situation = "Balanced"
         elif ratio <= DEFICIT_SUPPLY_RATIO:
@@ -569,15 +574,17 @@ class Market:
         order = self.buy_orders[trade_good][order_index]
         price_point = self.calculate_buy_price_point(order, trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().trade_difficulty_status[trade_good]["price_range"],
-                                     price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
+                                     TRADE_GOODS_DATA[trade_good]["base_price"],
+                                     price_point,
+                                     SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_buy_price_bonus(order, trade_good))
 
     def simulate_sell_price(self, trade_good, new_supply_ratio, item : Item) -> int:
         price_point, _ = self.calculate_sell_price_point(trade_good, new_supply_ratio)
         return calculate_final_price(SimulationStatus().inflation,
-                                     SimulationStatus().trade_difficulty_status[trade_good]["price_range"],
-                                     price_point, SimulationStatus().global_good_status[trade_good].current_fluctuation,
+                                     TRADE_GOODS_DATA[trade_good]["base_price"],
+                                     price_point,
+                                     SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_sell_price_bonus(item, trade_good))
 
     def recalculate_prices(self, trade_good, operation="Buy", breakpoint_recalculate=True):
@@ -590,7 +597,7 @@ class Market:
         new_supply = last_supply
 
         if breakpoint_recalculate:
-            breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, last_supply)
+            breakpoints = get_breakpoint_quantities(status.get_equilibrium(), status.total_supply, last_supply)
             new_supply = breakpoints[-1] if breakpoints else new_supply
             if operation == "Buy":
                 status.last_buy_supply = new_supply
@@ -599,7 +606,7 @@ class Market:
                 status.last_sell_supply = new_supply
                 print(f"Last Sell now: {status.last_sell_supply}")
 
-        ratio = new_supply / status.equilibrium_quantity if status.equilibrium_quantity != 0 else new_supply
+        ratio = new_supply / status.get_equilibrium() if status.get_equilibrium() != 0 else new_supply
 
         sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
 
@@ -618,7 +625,7 @@ class Market:
     def get_bracketed_set(self, trade_good, operation, before_total, before_cost, quantity_operated, order_index=-1, item=None):
         status = self.trade_good_status[trade_good]
         #last_supply = status.last_buy_supply if operation == "Buy" else status.last_sell_supply
-        breakpoints = get_breakpoint_quantities(status.equilibrium_quantity, status.total_supply, before_total)
+        breakpoints = get_breakpoint_quantities(status.get_equilibrium(), status.total_supply, before_total)
 
         if breakpoints:
             breakpoint_total = before_total
@@ -643,8 +650,8 @@ class Market:
 
                     # we only need to get the calculated prices, no need to recalculate for every reached breakpoint
 
-                    price = self.simulate_buy_price(trade_good, breakpoint_q / status.equilibrium_quantity, order_index) \
-                        if operation == "Buy" else self.simulate_sell_price(trade_good, breakpoint_q / status.equilibrium_quantity, item)
+                    price = self.simulate_buy_price(trade_good, breakpoint_q / status.get_equilibrium(), order_index) \
+                        if operation == "Buy" else self.simulate_sell_price(trade_good, breakpoint_q / status.get_equilibrium(), item)
 
                     if price == order_breakpoint_prices[i - 1]:
                         # join quantities of the same prices
@@ -702,7 +709,7 @@ class Market:
 
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation
-        surplus_point = bracketed_pricing(self.trade_good_status[trade_good].equilibrium_quantity)[2]
+        surplus_point = bracketed_pricing(self.trade_good_status[trade_good].get_equilibrium())[2]
 
         if new_supply <= surplus_point:
             return  # Nothing to distribute
@@ -832,7 +839,7 @@ class Market:
 
         # for logi function, can be a range of something like 1.20-1.25 or 0.75-0.90 or 0.75-1.25 without modifiers
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
-        ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
+        ratio = status.total_supply / status.get_equilibrium() if new_supply_ratio == -1 else new_supply_ratio
 
         return calculate_buy_price(floor, ceil, ratio)
 
@@ -861,7 +868,7 @@ class Market:
             negative_modifiers -= positive_modifiers
             positive_modifiers = 0
 
-        ratio = status.total_supply / status.equilibrium_quantity if new_supply_ratio == -1 else new_supply_ratio
+        ratio = status.total_supply / status.get_equilibrium() if new_supply_ratio == -1 else new_supply_ratio
 
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
         generic_buy_price = calculate_buy_price(floor, ceil, ratio)
@@ -999,7 +1006,7 @@ class Market:
         if debug:
             print(f"Price Ranges: {round(floor, 2)}-{round(ceil, 2)} | Price Points: {round(status.buy_price, 2)} "
                   f"{round(status.sell_price, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
-                  f"| Supply Ratio: {round(status.total_supply / status.equilibrium_quantity, 2)} "
+                  f"| Supply Ratio: {round(status.total_supply / status.get_equilibrium(), 2)} "
                   f"| Today's Fluctuation: {round(SimulationStatus().global_good_status[trade_good].current_fluctuation, 2)}")
 
         print()
@@ -1049,10 +1056,10 @@ class Market:
                 print(f"{i + 1}. - x{item.total_quantity:<5} {item.trade_good} at {round(item.total_value / item.total_quantity)}cr manufactured by {item.producer.name}")
 
         print(f"\nSituation - {status.situation}")
-        print(f"Breakoffs - {bracketed_pricing(status.equilibrium_quantity)}")
+        print(f"Breakoffs - {bracketed_pricing(status.get_equilibrium())}")
         print(
             f"Available for export: {status.available_supply} | Internal supply wanted: "
-            f"{bracketed_pricing(status.equilibrium_quantity)[1] - abs(min(0, status.available_supply))} "
+            f"{bracketed_pricing(status.get_equilibrium())[1] - abs(min(0, status.available_supply))} "
             f"| Total: {status.total_supply}")
 
     def short_listing(self):

@@ -305,19 +305,26 @@ if __name__ == "__main__":
 
             item_index = user.find_item_index(found_item)
             item = user.items[item_index]
+            old_cost = item.total_value
+
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
+            revenue = item.total_value
 
             user.remove_item(item) # TODO: market should only sell if this doesn't fail as this executes anyway
             user.money += item.total_value
             if len(item.breakdown_prices) == 1:
-                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr!")
+                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr! "
+                      f"Profit: {revenue - old_cost}cr - Margins: {round(100 * (revenue - old_cost) / old_cost, 1)}%"
+                      f"\nYour money: {user.money}cr")
                 command, params = parse_command()
                 continue
 
             for q, p in item.breakdown_prices:
                 print(f"You sold {q} {tg} at {p}cr each")
 
-            print(f"Totaling {item.total_quantity} {tg} for {item.total_value}cr! Your money: {user.money}cr")
+            print(f"Totaling {item.total_quantity} {tg} for {item.total_value}cr! "
+                  f"Profit: {revenue - old_cost}cr - Margins: {round(100 * (revenue - old_cost) / old_cost, 1)}%"
+                  f"\nYour money: {user.money}cr")
 
         if command in ["a", "al"]:
             if len(params) >= 2 and 0 < int(params[0]) < len(market.buy_orders[tg]) + 1 and int(params[1] > 0):
