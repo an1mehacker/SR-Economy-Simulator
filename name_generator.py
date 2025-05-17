@@ -370,7 +370,7 @@ faeyan_interstellar_corpos = {
 }
 
 human_interstellar_corpos = {
-    'Organics': 'Eden Exports',
+    'Organics': 'GalaMart',
     'Synthetics': 'Exo Corp.',
     'Common Minerals': 'Titan Extractors',
     'Rare Minerals': 'Titan Extractors',

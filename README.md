@@ -25,28 +25,14 @@ Here's an example use
 0.2 - General price balancing, code stability, more features (like finding trades) and improvements
 
 ### Future
-0.3 - Passive trade good production, Producer Bonuses
+0.3 - Passive trade good production, Producer Bonuses  
 0.4 - Growths and Recessions, NPC trading
 
 ### Past
 0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
 
-# Price factors
-
-Global:
-  * Inflation   
-  * Trade Difficulty of Simulation
-  * Trade Good Base Price and Range
-
-Market:
-  * Development Score (highly developed planets have more expensive goods)
-  * Producer Bonuses if applicable
-  * Daily Fluctuation
-  * Market Events like deficits or sales.
-  * Supply and Demand
-
 # Planned features
-- Passive production and consumption of trade goods
+- Passive production and consumption of trade goods. Events that can trigger large production or consumption changes. 
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
@@ -61,16 +47,33 @@ Market:
 
 Most important file is economy_entity.py
 
-Most important functions are: Market.generate_market(), Market.buy(), Market.sell(), calculate_price_point(),
+Most important functions: 
+
+#### Market
+generate_market(), buy(), sell(), recalculate_prices(), calculate_buy_price_point(), calculate_buy_price_point()
 
 ### Supply and Demand
 
-
 ![](images/supply%20demand%20graph.png?)
 
-This graph explains how buy and sell prices are determined by a function of supply ratio. 
-Low supply ratio -> Higher buy prices -> closer sell prices
+This graph illustrates how buy and sell prices are determined by a function of supply ratio.   
+Low supply ratio -> Higher buy prices -> closer sell prices  
 High Supply ratio -> Lower buy prices -> distant sell prices
+
+
+### Price factors
+
+Global:
+  * Inflation   
+  * Trade Difficulty of Simulation - Affects Price Spread
+  * Base Price
+  * Trade Good Fluctuation
+
+Market:
+  * Development Score (highly developed planets have more goods, and they're more expensive)
+  * Producer Bonuses if applicable (currently not implemented)
+  * Market Events like deficits or sales. (currently not implemented)
+  * Supply and Demand
 
 # Data Structures
 ### SimulationStatus:
