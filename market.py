@@ -196,6 +196,111 @@ class Actor:
 
         return count
 
+def get_consumption_multiplier(race, economy, political_system, trade_good):
+    multiplier = 1.0
+
+    # Economy type
+    if economy == "Industrial":
+        multiplier *= 1.3
+    elif economy == "Mixed":
+        multiplier *= 1.0
+    elif economy == "Agrarian":
+        multiplier *= 0.8
+    elif economy == "Extractive":
+        multiplier *= 0.7
+
+    if trade_good == "Essential Goods":
+        multiplier *= 1.5 if race == "Maloq" else 1.0
+
+    # Trade good specific consumption
+    if trade_good == "Luxury Goods":
+        if race == "Peleng":
+            multiplier *= 2
+        elif race == "Human":
+            multiplier *= 1.5
+        elif race == "Faeyan":
+            multiplier *= 1.3
+
+    if trade_good == "Vice Goods":
+        if race == "Human":
+            multiplier *= 1.5
+        if race == "Peleng":
+            multiplier *= 1.3
+
+    return multiplier
+
+def get_production_multiplier(race, economy, political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods=[]):
+    base_multiplier = 1.0
+
+    # Economy-based bonuses
+    if economy == "Agrarian":
+        if trade_good in {"Essential Goods", "Organics"}:
+            base_multiplier *= 1.5
+        else:
+            base_multiplier *= 0.5
+    if economy == "Extractive":
+        if trade_good in {"Common Minerals", "Rare Minerals"}:
+            base_multiplier *= 1.6
+        elif trade_good in {"Fuel"}:
+            base_multiplier *= 1.3
+        else:
+            base_multiplier *= 0.4
+    if economy == "Industrial":
+        if trade_good in {"Equipment Parts", "Technology Goods", "Microchips", "Weapons", "Ammunition", "Refined Minerals"}:
+            base_multiplier *= 2
+        if race == "Faeyan" and trade_good in ("Microchips", "Technology Goods", "Equipment Parts"):
+            base_multiplier *= 1.2
+    if economy == "Mixed":
+        if trade_good in {"Common Minerals", "Rare Minerals"}:
+            base_multiplier *= 1.2
+        if trade_good in {"Luxury Goods", "Synthetics", "Vice Goods", "Medicine", "Fuel", "Narcotics"}:
+            base_multiplier *= 1.6
+        if race == "Human" and trade_good == "Vice Goods":
+            base_multiplier *= 1.4
+        if race == "Gaalian" and trade_good == "Luxury Goods":
+            base_multiplier *= 1.2
+
+    # General Race-based bonuses
+    if race == "Peleng":
+        if trade_good == "Narcotics":
+            base_multiplier *= 1.5
+    if race == "Human":
+        if trade_good == "Medicine":
+            base_multiplier *= 1.2
+    if race == "Maloq":
+        if trade_good == "Essential Goods":
+            base_multiplier *= 2.0
+        if trade_good in ("Weapons", "Ammunition"):
+            base_multiplier *= 1.2
+        if trade_good == "Technology Goods":
+            base_multiplier *= 0.7
+    if race == "Gaalian":
+        if trade_good == "Synthetics":
+            base_multiplier *= 1.2
+        if trade_good == "Luxury Goods":
+            base_multiplier *= 1.2
+
+    if trade_good == "Technology Goods":
+        if race != "Faeyan":
+            base_multiplier *= 0
+        else:
+            base_multiplier *= 0.5
+
+    if trade_good in ("Weapons", "Ammunition"):
+         base_multiplier *= 1.2 if political_system == "Dictatorship" else 1.0
+
+    if trade_good in illegal_goods:
+        if political_system == "Dictatorship":
+            base_multiplier *= 0.1  # strict crackdown
+        else:
+            base_multiplier *= 0.5
+
+    # higher supply ratio -> less production
+    # depending on the multiplier calculated, this will balance out with the consumption amount if left running.
+    supply_factor = map_range_clamped(supply_ratio, 0, 2, 2, 0.5)
+    return base_multiplier * supply_factor * supply_chain_multiplier
+
+
 def is_legal(trade_good, race, political_system):
     # Absolute legality: Peleng race or Anarchy political system
     if race == "Peleng" or political_system == "Anarchy":
@@ -262,6 +367,7 @@ class MarketGoodStatus:
         self.total_supply = total_supply
         self.available_supply = 0
         self.enterprise_amount = enterprise_amount
+        self.individual_amount = 0
 
         # these 2 variables are what is gonna be used to calculate new prices every day. Over time, these values are
         # drifting towards the current supply. When recalculating due to breakpoints, these values change, making big
@@ -275,7 +381,8 @@ class MarketGoodStatus:
 
         # FLUCTUATION SUSCEPTIBILITY - new concept, how much of an effect the global fluctuation has on a trade good
         # Growth - lower susceptibility, Recession - higher susceptibility
-        self.fluctuation_multiplier = 1.0
+        # this value should move the fluctuation towards a direction. If it's positive it increases fluct and vice versa
+        self.fluctuation_offset = 0.0 #-1.0 to 1.0
         # Equilibrium friction - Allows markets to reject or want certain goods by changing this amount
         self.equilibrium_friction = 1.0
 
@@ -497,14 +604,50 @@ class Market:
             for key in TRADE_GOODS_DATA.keys()
         }
 
+    def consumption_production(self):
+        # get illegal goods
+        illegal_goods = [name for name, status in self.trade_good_status.items() if not status.legality]
+
+        for trade_good, buy_orders in self.buy_orders.items():
+            status = self.trade_good_status[trade_good]
+            sell_order = self.sell_order[trade_good]
+            supply_ratio = status.total_supply / status.get_equilibrium()
+
+            enterprise_bonus = min(max(0.5, status.enterprise_amount) / TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"], 1.5)
+            supply_chain_multiplier = self.get_supply_chain_multiplier(trade_good)
+            consumption = get_consumption_multiplier(self.race, self.development_type, self.political_system, trade_good)
+            production = get_production_multiplier(self.race, self.development_type, self.political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods) * enterprise_bonus
+            market_size_multiplier = map_range_clamped(self.market_size, 500, 3000, 0.5, 1.5)
+            net_production = market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"] * (production - consumption)
+            print(f"{trade_good:<20}: {"+" if net_production >= 0 else ""}{round(net_production, 1)} "
+                  f"(base:{round(market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"], 1)}"
+                  f"|supply chain: {round(supply_chain_multiplier, 1)}|con:{round(consumption, 1)}"
+                  f"|prod:{round(production, 1)})|corpo bonus: {round(enterprise_bonus, 2)}")
+
+    def get_supply_chain_multiplier(self, trade_good):
+        required = SUPPLY_CHAINS.get(trade_good, set())
+        multiplier = 1.0
+        if not required:
+            return multiplier
+        for dependency_trade_good in required:
+            status = self.trade_good_status[dependency_trade_good]
+            ratio = status.total_supply / status.equilibrium_quantity
+            if ratio < DEFICIT_SUPPLY_RATIO:
+                ratio = map_range_clamped(ratio, 0, DEFICIT_SUPPLY_RATIO, 0, 1.0)
+                multiplier *= ratio
+        return multiplier
+
+
     def balance_quantities_sell(self):
-        balance_factor = 0.3
+        balance_factor = 0.075
 
         for trade_good in TRADE_GOODS_DATA:
             order = self.sell_order[trade_good]
-            amount_to_shift = min(max(round(order.balance_quantity * balance_factor),3), order.balance_quantity)
-            order.balance_quantity -= amount_to_shift
-            order.quantity += amount_to_shift
+            if order.balance_quantity > 0:
+                # Balance out 10% or 3 units whichever is higher until it empties out
+                amount_to_shift = min(max(round(order.balance_quantity * balance_factor),3), order.balance_quantity)
+                order.balance_quantity -= amount_to_shift
+                order.quantity += amount_to_shift
 
     def balance_quantities(self, trade_good):
         balance_factor = 0.2
@@ -929,7 +1072,9 @@ class Market:
 
         # --- Generate total supply scaled to producer count ---
         base_amount = TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"] + 1
-        supply = round(status.total_supply * (max(status.enterprise_amount, 1) / base_amount))
+        supply = round(status.total_supply * math.sqrt(max(status.enterprise_amount / base_amount, 1)))
+        #supply = round(status.total_supply * math.sqrt(max(status.enterprise_amount, 1) / base_amount))
+        #supply = round(status.total_supply * math.sqrt(max(status.enterprise_amount, 1)) / base_amount)
         status.total_supply = supply
 
         available_supply = supply - bracketed_pricing(equilibrium)[1]
@@ -976,11 +1121,11 @@ class Market:
             self.buy_orders[trade_good].append(buy_order)
 
         # --- Generate SELL order ---
-        self.sell_order[trade_good] = SellListing(max(2 * equilibrium - supply, 0))
+        self.sell_order[trade_good] = SellListing(2 * equilibrium - supply)
         self.sell_order[trade_good].price_point = sell_price
         self.sell_order[trade_good].calculated_price = self.get_sell_price_by_order(self.sell_order[trade_good], trade_good)
 
-        status.enterprise_amount = interstellar_amount + enterprise_amount + individual_amount
+        status.individual_amount = individual_amount
         status.enterprise_text = f"{interstellar_amount}-{enterprise_amount}-{individual_amount}"
         self.update_available_supply(trade_good)
 
@@ -1013,7 +1158,7 @@ class Market:
         print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")
         for i in range(enterprise_amount):
             print(f"{str(i + 1) + ".":>3} {names[i]:<30} - Buy (x{buy_orders[i].quantity:<5}) at {buy_orders[i].calculated_price:>4}cr "
-                  f"| Balance quantity: (x{buy_orders[i].balance_quantity})")
+                  f"| In storage: (x{buy_orders[i].balance_quantity})")
 
         # Filter out invalid (zero-quantity) orders for correct total quantity calculation
         valid_buy_orders = [(order.calculated_price, order.quantity) for order in buy_orders if order.quantity > 0]
@@ -1042,7 +1187,7 @@ class Market:
 
         print()
         print(">>" + ("-" * 20) + "SELL" + ("-" * 20) + "<<")
-        print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr | Balance quantity (x{sell_order.balance_quantity})")
+        print(f"Sell (x{sell_order.quantity}) at {sell_order.calculated_price}cr | In storage (x{sell_order.balance_quantity})")
 
         # TODO List selling bonuses here
         filtered_items = [item for item in items if item.trade_good == trade_good]

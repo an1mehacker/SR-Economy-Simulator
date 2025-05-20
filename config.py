@@ -1,37 +1,40 @@
-﻿TRADE_GOODS_DATA = {
-        "Essential Goods":  {"base_price": 22,  "base_range": 0.45, "volatility_price":3,  "volatility_duration": 12},
-        "Medicine":         {"base_price": 30,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 50},
-        "Organics":         {"base_price": 17,  "base_range": 0.475, "volatility_price":3,  "volatility_duration": 10},
-        "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 45},
-        "Common Minerals":  {"base_price": 9,   "base_range": 0.45, "volatility_price":2,  "volatility_duration": 90},
-        "Rare Minerals":    {"base_price": 40,  "base_range": 0.475, "volatility_price":7,  "volatility_duration": 25},
-        "Refined Minerals": {"base_price": 25,  "base_range": 0.35, "volatility_price":3,  "volatility_duration": 50},
-        "Vice Goods":       {"base_price": 30,  "base_range": 0.50, "volatility_price":5,  "volatility_duration": 10},
-        "Microchips":       {"base_price": 50,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 50},
-        "Technology Goods": {"base_price": 60,  "base_range": 0.40, "volatility_price":4,  "volatility_duration": 35},
-        "Luxury Goods":     {"base_price": 150, "base_range": 0.35, "volatility_price":35, "volatility_duration": 30},
-        "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1,  "volatility_duration": 15},
-        "Ammunition":       {"base_price": 15,  "base_range": 0.30, "volatility_price":2,  "volatility_duration": 20},
-        "Equipment Parts":  {"base_price": 90,  "base_range": 0.20, "volatility_price":3,  "volatility_duration": 25},
-        "Weapons":          {"base_price": 75,  "base_range": 0.45, "volatility_price":10, "volatility_duration": 20},
-        "Narcotics":        {"base_price": 300, "base_range": 0.50, "volatility_price":60, "volatility_duration": 5}
+﻿BASE_PRODUCTION = 200
+BASE_CONSUMPTION = 120
+
+TRADE_GOODS_DATA = {
+        "Essential Goods":  {"base_price": 22,  "base_range": 0.45, "volatility_price":3,  "volatility_duration": 12,  "base_production": BASE_PRODUCTION / 22},
+        "Medicine":         {"base_price": 30,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 50,  "base_production": BASE_PRODUCTION / 30},
+        "Organics":         {"base_price": 17,  "base_range": 0.475, "volatility_price":3,  "volatility_duration": 10, "base_production": BASE_PRODUCTION / 17},
+        "Synthetics":       {"base_price": 13,  "base_range": 0.35, "volatility_price":1,  "volatility_duration": 45,  "base_production": BASE_PRODUCTION / 13},
+        "Common Minerals":  {"base_price": 9,   "base_range": 0.45, "volatility_price":2,  "volatility_duration": 90,  "base_production": BASE_PRODUCTION / 9},
+        "Rare Minerals":    {"base_price": 40,  "base_range": 0.475, "volatility_price":7,  "volatility_duration": 25, "base_production": BASE_PRODUCTION / 40},
+        "Refined Minerals": {"base_price": 25,  "base_range": 0.35, "volatility_price":3,  "volatility_duration": 50,  "base_production": BASE_PRODUCTION / 25},
+        "Vice Goods":       {"base_price": 30,  "base_range": 0.50, "volatility_price":5,  "volatility_duration": 10,  "base_production": BASE_PRODUCTION / 30},
+        "Microchips":       {"base_price": 50,  "base_range": 0.30, "volatility_price":4,  "volatility_duration": 50,  "base_production": BASE_PRODUCTION / 50},
+        "Technology Goods": {"base_price": 60,  "base_range": 0.40, "volatility_price":4,  "volatility_duration": 35,  "base_production": BASE_PRODUCTION / 60},
+        "Luxury Goods":     {"base_price": 150, "base_range": 0.35, "volatility_price":35, "volatility_duration": 30,  "base_production": BASE_PRODUCTION / 150},
+        "Fuel":             {"base_price": 10,  "base_range": 0.30, "volatility_price":1,  "volatility_duration": 15,  "base_production": BASE_PRODUCTION / 10},
+        "Ammunition":       {"base_price": 15,  "base_range": 0.30, "volatility_price":2,  "volatility_duration": 20,  "base_production": BASE_PRODUCTION / 15},
+        "Equipment Parts":  {"base_price": 90,  "base_range": 0.20, "volatility_price":3,  "volatility_duration": 25,  "base_production": BASE_PRODUCTION / 90},
+        "Weapons":          {"base_price": 75,  "base_range": 0.45, "volatility_price":10, "volatility_duration": 20,  "base_production": BASE_PRODUCTION / 75},
+        "Narcotics":        {"base_price": 300, "base_range": 0.50, "volatility_price":60, "volatility_duration": 5,   "base_production": BASE_PRODUCTION / 300}
 }
 
 MAX_RANGE = max(good["base_range"] for good in TRADE_GOODS_DATA.values())
 
 TRADE_GOOD_ENTERPRISE_RULES = {
     "Organics": {
-        "base_amount": 4,
+        "base_amount": 3,
         "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": 2, "Mixed": 0, "Industrial": -1},
     },
     "Synthetics": {
         "base_amount": 3,
         "politics": {"Democracy": 0, "Republic": 1, "Dictatorship": 2, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
-        "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 1},
+        "development": {"Agrarian": 0, "Mixed": 2, "Industrial": 1},
     },
     "Common Minerals": {
-        "base_amount": 5,
+        "base_amount": 4,
         "politics": {"Democracy": -1, "Republic": 0, "Dictatorship": 2, "Monarchy": 1, "Anarchy": 0, "Theocracy":1},
         "development": {"Agrarian": 1, "Mixed": 0, "Industrial": -1},
     },
@@ -46,19 +49,19 @@ TRADE_GOOD_ENTERPRISE_RULES = {
         "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
     },
     "Essential Goods": {
-        "base_amount": 5,
+        "base_amount": 4,
         "politics": {"Democracy": 1, "Republic": 2, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":0},
-        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
+        "development": {"Agrarian": 3, "Mixed": 0, "Industrial": 0},
     },
     "Medicine": {
         "base_amount": 3,
         "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": 0, "Monarchy": -1, "Anarchy": 0, "Theocracy":-2},
-        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+        "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 0},
     },
     "Vice Goods": {
         "base_amount": 2,
         "politics": {"Democracy": 0, "Republic": 0, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 1, "Theocracy":-2},
-        "development": {"Agrarian": 1, "Mixed": 0, "Industrial": 0},
+        "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 0},
     },
     "Technology Goods": {
         "base_amount": 2,
@@ -66,14 +69,14 @@ TRADE_GOOD_ENTERPRISE_RULES = {
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
     },
     "Microchips": {
-        "base_amount": 1,
+        "base_amount": 2,
         "politics": {"Democracy": 2, "Republic": 1, "Dictatorship": -1, "Monarchy": 0, "Anarchy": 0, "Theocracy":-10},
         "development": {"Agrarian": -1, "Mixed": 0, "Industrial": 2},
     },
     "Luxury Goods": {
-        "base_amount": 1,
+        "base_amount": 2,
         "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": 0, "Monarchy": 0, "Anarchy": 1, "Theocracy":2},
-        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+        "development": {"Agrarian": -1, "Mixed": 2, "Industrial": 1},
     },
     "Weapons": {
         "base_amount": 3,
@@ -93,7 +96,7 @@ TRADE_GOOD_ENTERPRISE_RULES = {
     "Fuel": {
         "base_amount": 4,
         "politics": {"Democracy": 1, "Republic": 1, "Dictatorship": -1, "Monarchy": -1, "Anarchy": 0, "Theocracy":-1},
-        "development": {"Agrarian": 0, "Mixed": 0, "Industrial": 1},
+        "development": {"Agrarian": 0, "Mixed": 1, "Industrial": 0},
     },
     "Ammunition": {
         "base_amount": 3,
@@ -136,7 +139,7 @@ SUPPLY_CHAINS = {
 # To understand the effect these values have on prices, feel free to run the logistic_price_visualizer.py
 BUY_LOGISTIC_FACTOR = 3
 SELL_LOGISTIC_FACTOR = 2.9
-LOGISTIC_CUTOFF = 0.07 # ensures min and max prices can be realistically reached
+LOGISTIC_CUTOFF = 0.05 # ensures min and max prices can be realistically reached
 
 # Sell
 SELL_CENTER_SHIFT = 1.6 # ensures sell prices are not too far away from buy prices, keep the values between 1.0-2.0

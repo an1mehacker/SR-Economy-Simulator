@@ -20,12 +20,15 @@ def wait():
     statuses = regroup_trade_good_statuses(markets)
     # for market in markets:
     market.balance_quantities_sell()
+    market.consumption_production()
     for trade_good in TRADE_GOODS_DATA:
         SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
         #print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
 
+        # TODO: Must enumerate for all markets
         market.balance_quantities(trade_good)
         market.drift_prices(trade_good)
+        # recalculating prices should be the last thing to do
         market.recalculate_prices(trade_good, "", False)
 
 def parse_command():
@@ -143,20 +146,15 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
                         "sell_price": sell_price,
                         "profit_per_unit": round(profit_per_unit),
                         "total_profit": total_profit,
-                        #"margin": f"{round(margin * 100, 1)}%"
                         "margin": margin
                     }
                     if margin > minimum_margin and share > minimum_share and total_profit > minimum_profit:
-                        if False and verbose:
-                            print(
-                                f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} {trade['buy_price']:>4}cr → "
-                                f"Sell @{trade['sell_market']:<12} {trade['sell_price']:>4}cr | Qty: {trade['quantity']:>5} | "
-                                f"Profit: {trade['total_profit']:>7}cr | Margin: {round(trade['margin'] * 100, 1)}%")
                         profitable_trades.append(trade)
 
+    max_trades = 100
     if verbose:
         profitable_trades = sorted(profitable_trades, key=lambda t: t["margin"], reverse=False)
-        for trade in profitable_trades:
+        for trade in profitable_trades[-max_trades:]:
             print(
                 f"{trade['trade_good']:<20}: Buy @{trade['buy_market']:<12} {trade['buy_price']:>4}cr → "
                 f"Sell @{trade['sell_market']:<12} {trade['sell_price']:>4}cr | Qty: {trade['quantity']:>5} | "
@@ -165,9 +163,9 @@ def find_profitable_trades(markets, minimum_margin=0.0, minimum_share=0.0, minim
 
     if len(profitable_trades) > 0:
         average_profit = sum([trade["margin"] for trade in profitable_trades]) / len(profitable_trades)
-        print(f"Displaying {len(profitable_trades)} - ({round(len(profitable_trades) / total * 100, 1)}%) profitable "
-          f"trades out of {total} total at the requested parameters ({minimum_margin} {minimum_share} {minimum_profit}), "
-          f"average profits: {round(average_profit * 100, 1)}%")
+        print(f"Displaying {min(max_trades, len(profitable_trades))} - profitable trades out of {total} total "
+              f"({round(len(profitable_trades) / total * 100, 1)}%) at the requested parameters ({minimum_margin} "
+              f"{minimum_share} {minimum_profit}), average profits: {round(average_profit * 100, 1)}%")
     else:
         print(f"Could not find any profitable trades under requested parameters ({minimum_margin} {minimum_share} {minimum_profit})")
     return profitable_trades
@@ -179,7 +177,7 @@ if __name__ == "__main__":
 
     while True:
         setup_input = input(
-            "Enter trade difficulty (1-10) and an additional amount of markets to generate (don't recommend more than 50)\n> ")
+            "Enter trade difficulty (1-10) and an additional amount of markets to generate (don't recommend more than 300)\n> ")
         setup_input2 = setup_input.strip().split()
         if not setup_input2:
             trade_difficulty, additional_markets = 1, 5
@@ -392,7 +390,6 @@ if __name__ == "__main__":
             else:
                 SimulationStatus().skip_day()
                 wait()
-
 
             days = SimulationStatus().days_elapsed - days
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")

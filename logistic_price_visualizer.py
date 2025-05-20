@@ -35,7 +35,7 @@ app.layout = html.Div([
             dcc.Slider(1.05, 2, 0.05, value=1.5, marks={1.05: '1.05', 2: '2'}, tooltip={"placement": "bottom", "always_visible": False}, id='ceil-slider'),
 
             html.Label('Buy Cut-off'),
-            dcc.Slider(0, 0.5, 0.01, value=LOGISTIC_CUTOFF, marks={0: '0.0', 0.5: '0.5'}, tooltip={"placement": "bottom", "always_visible": False}, id='deviation-slider'),
+            dcc.Slider(-0.5, 0.5, 0.01, value=LOGISTIC_CUTOFF, marks={-0.5: '-0.5', 0.5: '0.5'}, tooltip={"placement": "bottom", "always_visible": False}, id='deviation-slider'),
         ], style={"flex": 1, "padding": "10px"}),
 
         html.Div([
