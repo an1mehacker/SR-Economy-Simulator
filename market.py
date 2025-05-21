@@ -1,6 +1,5 @@
 ﻿import math
 import random
-
 from config import *
 from math2 import *
 from dataclasses import dataclass
@@ -196,8 +195,11 @@ class Actor:
 
         return count
 
-def get_consumption_multiplier(race, economy, political_system, trade_good):
+def get_consumption_multiplier(race, economy, political_system, trade_good, supply_ratio):
     multiplier = 1.0
+
+    if supply_ratio <= MAJOR_DEFICIT_SUPPLY_RATIO:
+         multiplier *= 0.2 # demand collapses, rationing is imposed
 
     # Economy type
     if economy == "Industrial":
@@ -280,7 +282,7 @@ def get_production_multiplier(race, economy, political_system, trade_good, suppl
         if trade_good == "Luxury Goods":
             base_multiplier *= 1.2
 
-    if trade_good == "Technology Goods":
+    if trade_good == "Technology Goods" and political_system == "Theocracy":
         if race != "Faeyan":
             base_multiplier *= 0
         else:
@@ -604,7 +606,7 @@ class Market:
             for key in TRADE_GOODS_DATA.keys()
         }
 
-    def consumption_production(self):
+    def consumption_production(self, verbose=False):
         # get illegal goods
         illegal_goods = [name for name, status in self.trade_good_status.items() if not status.legality]
 
@@ -615,14 +617,27 @@ class Market:
 
             enterprise_bonus = min(max(0.5, status.enterprise_amount) / TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"], 1.5)
             supply_chain_multiplier = self.get_supply_chain_multiplier(trade_good)
-            consumption = get_consumption_multiplier(self.race, self.development_type, self.political_system, trade_good)
+            consumption = get_consumption_multiplier(self.race, self.development_type, self.political_system, trade_good, supply_ratio)
             production = get_production_multiplier(self.race, self.development_type, self.political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods) * enterprise_bonus
             market_size_multiplier = map_range_clamped(self.market_size, 500, 3000, 0.5, 1.5)
             net_production = market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"] * (production - consumption)
-            print(f"{trade_good:<20}: {"+" if net_production >= 0 else ""}{round(net_production, 1)} "
-                  f"(base:{round(market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"], 1)}"
-                  f"|supply chain: {round(supply_chain_multiplier, 1)}|con:{round(consumption, 1)}"
-                  f"|prod:{round(production, 1)})|corpo bonus: {round(enterprise_bonus, 2)}")
+
+            # an integer amount of goods must be generated,
+            # using fractional part of the net production as the chance for rounding up
+            fractional, _ = math.modf(net_production)
+            if net_production >= 0:
+                net_quantity = math.ceil(net_production) if random.random() < fractional else math.floor(net_production)
+            else:
+                net_quantity = math.floor(net_production) if random.random() < -fractional else math.ceil(net_production)
+
+            status.total_supply += net_quantity
+            self.distribute_production_consumption(trade_good, net_quantity)
+
+            if verbose:
+                print(f"{trade_good:<20}: {"+" if net_production >= 0 else ""}{net_quantity:<4}"
+                    f"(base:{market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"]:.1f}"
+                    f"|supply chain: {supply_chain_multiplier:.1f}|con:{consumption:.1f}"
+                    f"|prod:{production:.1f})|corpo bonus: {enterprise_bonus:.2f}")
 
     def get_supply_chain_multiplier(self, trade_good):
         required = SUPPLY_CHAINS.get(trade_good, set())
@@ -631,7 +646,7 @@ class Market:
             return multiplier
         for dependency_trade_good in required:
             status = self.trade_good_status[dependency_trade_good]
-            ratio = status.total_supply / status.equilibrium_quantity
+            ratio = status.total_supply / status.get_equilibrium()
             if ratio < DEFICIT_SUPPLY_RATIO:
                 ratio = map_range_clamped(ratio, 0, DEFICIT_SUPPLY_RATIO, 0, 1.0)
                 multiplier *= ratio
@@ -849,6 +864,50 @@ class Market:
 
         # for an accurate calculation of prices, items retain complete breakdown of quantities and prices
         return Item(trade_good, sum(order_breakpoint_quantities), list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, order.producer)
+
+    def distribute_production_consumption(self, trade_good, net_production):
+        if net_production == 0:
+            return  # Nothing to distribute
+
+        buy_orders = self.buy_orders[trade_good]
+        sell_order = self.sell_order[trade_good]
+
+        if not buy_orders:
+            return  # No one to distribute to
+
+        weights = []
+        total_weight = 0
+        n = len(buy_orders)
+
+        for i, order in enumerate(buy_orders):
+            # Earlier orders get more weight; use exponential decay bias
+            positional_bias = (n - i) ** 1.5  # you can tweak the exponent for sharper or softer bias
+            randomness = random.uniform(0.9, 1.1)
+            weight = positional_bias * randomness
+            weights.append(weight)
+            total_weight += weight
+
+        distributed_total = 0
+        for i, order in enumerate(buy_orders):
+            share = round((weights[i] / total_weight) * net_production)
+
+            # Prevent over-distribution
+            if net_production > 0:
+                share = min(share, net_production - distributed_total)
+                order.quantity += share
+            else:
+                share = max(share, net_production - distributed_total)
+                actual_reduction = min(abs(share), order.quantity)
+                order.quantity -= actual_reduction
+
+            distributed_total += share
+
+            if abs(distributed_total) >= abs(net_production):
+                if abs(distributed_total) > abs(net_production):
+                    print("Over-distributed!")
+                break
+
+        sell_order.quantity += -net_production
 
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation

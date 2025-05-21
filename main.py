@@ -1,3 +1,4 @@
+import time
 import tracemalloc
 from market import *
 from math2 import clamp
@@ -17,19 +18,25 @@ def regroup_trade_good_statuses(list_of_markets):
     return dict(regrouped)
 
 def wait():
+    start_time = time.time()
     statuses = regroup_trade_good_statuses(markets)
-    # for market in markets:
-    market.balance_quantities_sell()
-    market.consumption_production()
     for trade_good in TRADE_GOODS_DATA:
         SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
-        #print(f"New fluctuation for {trade_good} - {SimulationStatus().global_good_status[trade_good].current_fluctuation}")
+    for m in markets:
+        m.balance_quantities_sell()
+        if m == market:
+            m.consumption_production(True)
+        else:
+            m.consumption_production()
+        for trade_good in TRADE_GOODS_DATA:
+            m.balance_quantities(trade_good)
+            m.drift_prices(trade_good)
+            # recalculating prices should be the last thing to do
+            m.recalculate_prices(trade_good, "", False)
+            m.update_available_supply(trade_good)
 
-        # TODO: Must enumerate for all markets
-        market.balance_quantities(trade_good)
-        market.drift_prices(trade_good)
-        # recalculating prices should be the last thing to do
-        market.recalculate_prices(trade_good, "", False)
+    elapsed = time.time() - start_time
+    return elapsed
 
 def parse_command():
     processed_input = input("> ").strip().lower()
@@ -383,16 +390,17 @@ if __name__ == "__main__":
 
         if command == "w":
             days = SimulationStatus().days_elapsed
+            elapsed_time = 0
             if params:
                 for _ in range(int(params[0])):
                     SimulationStatus().skip_day()
-                    wait()
+                    elapsed_time += wait()
             else:
                 SimulationStatus().skip_day()
-                wait()
+                elapsed_time += wait()
 
             days = SimulationStatus().days_elapsed - days
-            print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}")
+            print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}, operation took {elapsed_time:.2f}s")
 
         if command == "t":
             if len(params) < 1:
