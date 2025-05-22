@@ -25,7 +25,7 @@ def wait():
     for m in markets:
         m.balance_quantities_sell()
         if m == market:
-            m.consumption_production(True)
+            m.consumption_production(False)
         else:
             m.consumption_production()
         for trade_good in TRADE_GOODS_DATA:
@@ -50,7 +50,7 @@ def parse_command():
 
     parameters = [int(param) if param.isdigit() else param for param in parameters]
 
-    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp", "do", "set"]:
+    if operation in ["s", "b", "a", "r", "bl", "sl", "w", "al", "rl", "wl", "help", "t", "h", "l", "m", "i", "f", "dp", "do", "set", "p"]:
         return operation, parameters
 
     if operation in ["q", "quit", "exit"]:
@@ -401,6 +401,9 @@ if __name__ == "__main__":
 
             days = SimulationStatus().days_elapsed - days
             print(f"Waited {days} day{'s' if days > 1 else ''}, new inflation {SimulationStatus().inflation}, operation took {elapsed_time:.2f}s")
+
+        if command == "p":
+            market.consumption_production(True)
 
         if command == "t":
             if len(params) < 1:

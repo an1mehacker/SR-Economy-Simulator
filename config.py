@@ -1,4 +1,6 @@
-﻿BASE_PRODUCTION = 200
+﻿from math2 import map_range_clamped
+
+BASE_PRODUCTION = 200
 BASE_CONSUMPTION = 120
 
 TRADE_GOODS_DATA = {
@@ -171,3 +173,157 @@ HIGH_SUPPLY_SPREAD = 2.25 # greatly affects amount of profitable trades and prof
 INTERSTELLAR_PRICE_SPREAD = 0.20
 ENTERPRISE_PRICE_SPREAD = 0.25
 INDIVIDUAL_PRICE_SPREAD = 0.40
+
+
+def get_consumption_multiplier(race, economy, political_system, trade_good, supply_ratio):
+    multiplier = 1.0
+
+    if supply_ratio <= MAJOR_DEFICIT_SUPPLY_RATIO:
+         multiplier *= 0.2 # demand collapses, rationing is imposed
+
+    # Economy type
+    if economy == "Industrial":
+        multiplier *= 1.3
+    elif economy == "Mixed":
+        multiplier *= 1.0
+    elif economy == "Agrarian":
+        multiplier *= 0.8
+    elif economy == "Extractive":
+        multiplier *= 0.7
+
+    if trade_good == "Essential Goods":
+        multiplier *= 1.5 if race == "Maloq" else 1.0
+
+    # Trade good specific consumption
+    if trade_good == "Luxury Goods":
+        if race == "Peleng":
+            multiplier *= 2
+        elif race == "Human":
+            multiplier *= 1.5
+        elif race == "Faeyan":
+            multiplier *= 1.3
+
+    if trade_good == "Vice Goods":
+        if race == "Human":
+            multiplier *= 1.5
+        if race == "Peleng":
+            multiplier *= 1.3
+
+    return multiplier
+
+def get_production_multiplier(race, economy, political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods=[]):
+    # TODO: ideally replace this with a data table
+    base_multiplier = 1.0
+
+    # Economy-based bonuses
+    if economy == "Agrarian":
+        if trade_good in {"Essential Goods", "Organics"}:
+            base_multiplier *= 1.5
+        else:
+            base_multiplier *= 0.5
+    if economy == "Extractive":
+        if trade_good in {"Common Minerals", "Rare Minerals"}:
+            base_multiplier *= 1.6
+        elif trade_good in {"Fuel"}:
+            base_multiplier *= 1.3
+        else:
+            base_multiplier *= 0.4
+    if economy == "Industrial":
+        if trade_good in {"Equipment Parts", "Technology Goods", "Microchips", "Weapons", "Ammunition", "Refined Minerals"}:
+            base_multiplier *= 2
+        if race == "Faeyan" and trade_good in ("Microchips", "Technology Goods", "Equipment Parts"):
+            base_multiplier *= 1.2
+    if economy == "Mixed":
+        if trade_good in {"Common Minerals", "Rare Minerals"}:
+            base_multiplier *= 1.2
+        if trade_good in {"Luxury Goods", "Synthetics", "Vice Goods", "Medicine", "Fuel", "Narcotics"}:
+            base_multiplier *= 1.6
+        if race == "Human" and trade_good == "Vice Goods":
+            base_multiplier *= 1.4
+        if race == "Gaalian" and trade_good == "Luxury Goods":
+            base_multiplier *= 1.2
+
+    # General Race-based bonuses
+    if race == "Peleng":
+        if trade_good == "Narcotics":
+            base_multiplier *= 1.5
+    if race == "Human":
+        if trade_good == "Medicine":
+            base_multiplier *= 1.2
+    if race == "Maloq":
+        if trade_good == "Essential Goods":
+            base_multiplier *= 2.0
+        if trade_good in ("Weapons", "Ammunition"):
+            base_multiplier *= 1.2
+        if trade_good == "Technology Goods":
+            base_multiplier *= 0.7
+    if race == "Gaalian":
+        if trade_good == "Synthetics":
+            base_multiplier *= 1.2
+        if trade_good == "Luxury Goods":
+            base_multiplier *= 1.2
+
+    if trade_good == "Technology Goods" and political_system == "Theocracy":
+        if race != "Faeyan":
+            base_multiplier *= 0
+        else:
+            base_multiplier *= 0.5
+
+    if trade_good in ("Weapons", "Ammunition"):
+         base_multiplier *= 1.2 if political_system == "Dictatorship" else 1.0
+
+    if trade_good in illegal_goods:
+        if political_system == "Dictatorship":
+            base_multiplier *= 0.1  # strict crackdown
+        else:
+            base_multiplier *= 0.5
+
+    # higher supply ratio -> less production
+    # depending on the multiplier calculated, this will balance out with the consumption amount if left running.
+    supply_factor = map_range_clamped(supply_ratio, 0, 2, 2, 0.5)
+    return base_multiplier * supply_factor * supply_chain_multiplier
+
+
+def is_legal(trade_good, race, political_system):
+    # Absolute legality: Peleng race or Anarchy political system
+    if race == "Peleng" or political_system == "Anarchy":
+        return True
+
+    if trade_good == "Luxury Goods":
+        if race == "Maloq" and political_system != "Monarchy":
+            return False
+
+    if trade_good == "Vice Goods":
+        if race in {"Maloq", "Gaalian"}:
+            return False
+        if race == "Faeyan" and political_system in {"Monarchy", "Dictatorship"}:
+            return False
+
+    if trade_good == "Technology Goods":
+        if race != "Faeyan" and political_system == "Theocracy":
+            return False
+
+    if trade_good in {"Weapons", "Ammunition"}:
+        if race in {"Faeyan", "Gaalian"} and political_system != "Dictatorship":
+            return False
+        if race == "Human" and political_system == "Democracy":
+            return False
+
+    if trade_good == "Narcotics":
+        if race == "Human" and political_system == "Monarchy":
+            return True
+        if race == "Faeyan" and political_system == "Dictatorship":
+            return True
+
+        return False
+
+    # interesting combinations:
+    # Maloq Theocracy -> 4 bans: Luxury Goods, Vice Goods, Tech Goods, Narcotics banned
+    # Faeyan Dictatorship -> 1 ban: Vice Goods
+    # Human Monarchy - Everything legal
+    # Combinations that shouldn't exist: Maloq Democracy and Gaalian Anarchy
+
+    return True
+
+def is_essential(trade_good, race):
+    return trade_good in ESSENTIAL_GOODS.get(race, set())

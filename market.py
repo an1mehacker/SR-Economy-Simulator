@@ -195,159 +195,6 @@ class Actor:
 
         return count
 
-def get_consumption_multiplier(race, economy, political_system, trade_good, supply_ratio):
-    multiplier = 1.0
-
-    if supply_ratio <= MAJOR_DEFICIT_SUPPLY_RATIO:
-         multiplier *= 0.2 # demand collapses, rationing is imposed
-
-    # Economy type
-    if economy == "Industrial":
-        multiplier *= 1.3
-    elif economy == "Mixed":
-        multiplier *= 1.0
-    elif economy == "Agrarian":
-        multiplier *= 0.8
-    elif economy == "Extractive":
-        multiplier *= 0.7
-
-    if trade_good == "Essential Goods":
-        multiplier *= 1.5 if race == "Maloq" else 1.0
-
-    # Trade good specific consumption
-    if trade_good == "Luxury Goods":
-        if race == "Peleng":
-            multiplier *= 2
-        elif race == "Human":
-            multiplier *= 1.5
-        elif race == "Faeyan":
-            multiplier *= 1.3
-
-    if trade_good == "Vice Goods":
-        if race == "Human":
-            multiplier *= 1.5
-        if race == "Peleng":
-            multiplier *= 1.3
-
-    return multiplier
-
-def get_production_multiplier(race, economy, political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods=[]):
-    base_multiplier = 1.0
-
-    # Economy-based bonuses
-    if economy == "Agrarian":
-        if trade_good in {"Essential Goods", "Organics"}:
-            base_multiplier *= 1.5
-        else:
-            base_multiplier *= 0.5
-    if economy == "Extractive":
-        if trade_good in {"Common Minerals", "Rare Minerals"}:
-            base_multiplier *= 1.6
-        elif trade_good in {"Fuel"}:
-            base_multiplier *= 1.3
-        else:
-            base_multiplier *= 0.4
-    if economy == "Industrial":
-        if trade_good in {"Equipment Parts", "Technology Goods", "Microchips", "Weapons", "Ammunition", "Refined Minerals"}:
-            base_multiplier *= 2
-        if race == "Faeyan" and trade_good in ("Microchips", "Technology Goods", "Equipment Parts"):
-            base_multiplier *= 1.2
-    if economy == "Mixed":
-        if trade_good in {"Common Minerals", "Rare Minerals"}:
-            base_multiplier *= 1.2
-        if trade_good in {"Luxury Goods", "Synthetics", "Vice Goods", "Medicine", "Fuel", "Narcotics"}:
-            base_multiplier *= 1.6
-        if race == "Human" and trade_good == "Vice Goods":
-            base_multiplier *= 1.4
-        if race == "Gaalian" and trade_good == "Luxury Goods":
-            base_multiplier *= 1.2
-
-    # General Race-based bonuses
-    if race == "Peleng":
-        if trade_good == "Narcotics":
-            base_multiplier *= 1.5
-    if race == "Human":
-        if trade_good == "Medicine":
-            base_multiplier *= 1.2
-    if race == "Maloq":
-        if trade_good == "Essential Goods":
-            base_multiplier *= 2.0
-        if trade_good in ("Weapons", "Ammunition"):
-            base_multiplier *= 1.2
-        if trade_good == "Technology Goods":
-            base_multiplier *= 0.7
-    if race == "Gaalian":
-        if trade_good == "Synthetics":
-            base_multiplier *= 1.2
-        if trade_good == "Luxury Goods":
-            base_multiplier *= 1.2
-
-    if trade_good == "Technology Goods" and political_system == "Theocracy":
-        if race != "Faeyan":
-            base_multiplier *= 0
-        else:
-            base_multiplier *= 0.5
-
-    if trade_good in ("Weapons", "Ammunition"):
-         base_multiplier *= 1.2 if political_system == "Dictatorship" else 1.0
-
-    if trade_good in illegal_goods:
-        if political_system == "Dictatorship":
-            base_multiplier *= 0.1  # strict crackdown
-        else:
-            base_multiplier *= 0.5
-
-    # higher supply ratio -> less production
-    # depending on the multiplier calculated, this will balance out with the consumption amount if left running.
-    supply_factor = map_range_clamped(supply_ratio, 0, 2, 2, 0.5)
-    return base_multiplier * supply_factor * supply_chain_multiplier
-
-
-def is_legal(trade_good, race, political_system):
-    # Absolute legality: Peleng race or Anarchy political system
-    if race == "Peleng" or political_system == "Anarchy":
-        return True
-
-    if trade_good == "Luxury Goods":
-        if race == "Maloq" and political_system != "Monarchy":
-            return False
-
-    if trade_good == "Vice Goods":
-        if race in {"Maloq", "Gaalian"}:
-            return False
-        if race == "Faeyan" and political_system in {"Monarchy", "Dictatorship"}:
-            return False
-
-    if trade_good == "Technology Goods":
-        if race != "Faeyan" and political_system == "Theocracy":
-            return False
-
-    if trade_good in {"Weapons", "Ammunition"}:
-        if race in {"Faeyan", "Gaalian"} and political_system != "Dictatorship":
-            return False
-        if race == "Human" and political_system == "Democracy":
-            return False
-
-    if trade_good == "Narcotics":
-        if race == "Human" and political_system == "Monarchy":
-            return True
-        if race == "Faeyan" and political_system == "Dictatorship":
-            return True
-
-        return False
-
-    # interesting combinations:
-    # Maloq Theocracy -> 4 bans: Luxury Goods, Vice Goods, Tech Goods, Narcotics banned
-    # Faeyan Dictatorship -> 1 ban: Vice Goods
-    # Human Monarchy - Everything legal
-    # Combinations that shouldn't exist: Maloq Democracy and Gaalian Anarchy
-
-    return True
-
-
-def is_essential(trade_good, race):
-    return trade_good in ESSENTIAL_GOODS.get(race, set())
-
 class MarketGoodStatus:
     def __init__(self, essential : bool, legality : bool, buy_modifiers, sell_modifiers,
                  equilibrium_quantity, total_supply, enterprise_amount):
@@ -606,13 +453,12 @@ class Market:
             for key in TRADE_GOODS_DATA.keys()
         }
 
-    def consumption_production(self, verbose=False):
+    def consumption_production(self, verbose_only=False):
         # get illegal goods
         illegal_goods = [name for name, status in self.trade_good_status.items() if not status.legality]
 
         for trade_good, buy_orders in self.buy_orders.items():
             status = self.trade_good_status[trade_good]
-            sell_order = self.sell_order[trade_good]
             supply_ratio = status.total_supply / status.get_equilibrium()
 
             enterprise_bonus = min(max(0.5, status.enterprise_amount) / TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"], 1.5)
@@ -630,14 +476,57 @@ class Market:
             else:
                 net_quantity = math.floor(net_production) if random.random() < -fractional else math.ceil(net_production)
 
-            status.total_supply += net_quantity
-            self.distribute_production_consumption(trade_good, net_quantity)
-
-            if verbose:
+            if verbose_only:
                 print(f"{trade_good:<20}: {"+" if net_production >= 0 else ""}{net_quantity:<4}"
                     f"(base:{market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"]:.1f}"
                     f"|supply chain: {supply_chain_multiplier:.1f}|con:{consumption:.1f}"
                     f"|prod:{production:.1f})|corpo bonus: {enterprise_bonus:.2f}")
+
+            if net_quantity != 0:
+                current = status.total_supply
+                status.total_supply += net_quantity
+                self.sell_order[trade_good].quantity += -net_quantity
+                cutoff_quantity = round(DEFICIT_SUPPLY_RATIO * status.get_equilibrium())
+                if net_quantity > 0: # add
+                    if current + net_quantity <= cutoff_quantity:
+                        continue # below the cutoff point
+                    else:
+                        quantity_to_add = max(min(current + net_quantity - cutoff_quantity, net_quantity), 0)
+                        distributed_quantities = trade_good_distribution(int(quantity_to_add), len(buy_orders), 0.5)
+                        for i, quantity in enumerate(distributed_quantities):
+                            self.buy_orders[trade_good][i].quantity += quantity
+                else: # remove
+                    if current <= cutoff_quantity:
+                        continue
+                    else:
+                        quantity_to_remove = min(abs(net_quantity), max(current - cutoff_quantity, 0))
+                        distributed_quantities = trade_good_distribution(int(quantity_to_remove), len(buy_orders), 0.5)
+
+                        # first pass, we proportionally eliminate the quantities
+                        for i in range(len(buy_orders)):
+                            if quantity_to_remove <= 0:
+                                break
+
+                            allocated = distributed_quantities[i]
+                            removed = min(buy_orders[i].quantity, allocated)
+                            self.buy_orders[trade_good][i].quantity -= removed
+                            quantity_to_remove -= removed
+
+                            # If we couldn’t remove the full allocated amount, carry it to the next order
+                            leftover = allocated - removed
+                            if leftover > 0 and i + 1 < len(buy_orders):
+                                distributed_quantities[i + 1] += leftover
+
+                        # second pass, ensure it eliminates all the quantities sequentially if we have leftovers
+                        if quantity_to_remove > 0:
+                            for i in range(len(buy_orders)):
+                                if quantity_to_remove <= 0:
+                                    break
+                                removed = min(self.buy_orders[trade_good][i].quantity, quantity_to_remove)
+                                self.buy_orders[trade_good][i].quantity -= removed
+                                quantity_to_remove -= removed
+
+
 
     def get_supply_chain_multiplier(self, trade_good):
         required = SUPPLY_CHAINS.get(trade_good, set())
@@ -881,8 +770,8 @@ class Market:
 
         for i, order in enumerate(buy_orders):
             # Earlier orders get more weight; use exponential decay bias
-            positional_bias = (n - i) ** 1.5  # you can tweak the exponent for sharper or softer bias
-            randomness = random.uniform(0.9, 1.1)
+            positional_bias = (n - i) ** 1  # you can tweak the exponent for sharper or softer bias
+            randomness = random.uniform(0.8, 1.2)
             weight = positional_bias * randomness
             weights.append(weight)
             total_weight += weight
@@ -903,8 +792,6 @@ class Market:
             distributed_total += share
 
             if abs(distributed_total) >= abs(net_production):
-                if abs(distributed_total) > abs(net_production):
-                    print("Over-distributed!")
                 break
 
         sell_order.quantity += -net_production
@@ -1208,10 +1095,10 @@ class Market:
 
         print(f"\nDetailed Listing for {trade_good}")
         if debug:
-            print(f"Price Ranges: {round(floor, 2)}-{round(ceil, 2)} | Price Points: {round(status.buy_price, 2)} "
-                  f"{round(status.sell_price, 2)} | Last Buy/Sell Amounts:{status.last_buy_supply}/{status.last_sell_supply} "
-                  f"| Supply Ratio: {round(status.total_supply / status.get_equilibrium(), 2)} "
-                  f"| Today's Fluctuation: {round(SimulationStatus().global_good_status[trade_good].current_fluctuation, 2)}")
+            print(f"Price Ranges: {floor:.2f}-{ceil:.2f} | Price Points: {status.buy_price:.2f} "
+                  f"{status.sell_price:.2f} | Last Buy/Sell Amounts:{status.last_buy_supply:.0f}/{status.last_sell_supply:.0f} "
+                  f"| Supply Ratio: {status.total_supply / status.get_equilibrium():.2f} "
+                  f"| Today's Fluctuation: {SimulationStatus().global_good_status[trade_good].current_fluctuation:.2f}")
 
         print()
         print(">>" + ("-" * 20) + "BUY" + ("-" * 20) + "<<")
