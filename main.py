@@ -319,18 +319,12 @@ if __name__ == "__main__":
 
             user.remove_item(item) # TODO: market should only sell if this doesn't fail as this executes anyway
             user.money += item.total_value
-            if len(item.breakdown_prices) == 1:
-                print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr! "
-                      f"Profit: {revenue - old_cost_per * quantity}cr - Margins: {round(100 * (revenue/quantity - old_cost_per) / old_cost_per, 1)}%"
-                      f"\nYour money: {user.money}cr")
-                command, params = parse_command()
-                continue
+            if len(item.breakdown_prices) > 1:
+                for q, p in item.breakdown_prices:
+                    print(f"You sold {q} {tg} at {p}cr each")
 
-            for q, p in item.breakdown_prices:
-                print(f"You sold {q} {tg} at {p}cr each")
-
-            print(f"Totaling {item.total_quantity} {tg} for {item.total_value}cr! "
-                  f"Profit: {revenue - old_cost}cr - Margins: {round(100 * (revenue - old_cost) / old_cost, 1)}%"
+            print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr! "
+                  f"Profit: {revenue - old_cost_per * quantity}cr - Margins: {round(100 * (revenue / quantity - old_cost_per) / old_cost_per, 1)}%"
                   f"\nYour money: {user.money}cr")
 
         if command in ["a", "al"]:

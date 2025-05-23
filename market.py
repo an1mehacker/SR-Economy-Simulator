@@ -381,10 +381,10 @@ def trade_good_distribution(total_goods: int, num_slots: int, spread_multiplier=
     for i in range(abs(diff)):
         if diff > 0:
             distribution[i % num_slots] += 1
-        elif diff < 0 and distribution[i % num_slots] > 0:
+        elif diff < 0 < distribution[i % num_slots]:
             distribution[i % num_slots] -= 1
 
-    # Final sanity pass (preserves rightmost producers)
+    # sanity check
     final_diff = abs(total_goods - sum(distribution))
     if final_diff > 0:
         for i in reversed(range(num_slots)):

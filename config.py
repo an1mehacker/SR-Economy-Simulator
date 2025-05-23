@@ -1,7 +1,6 @@
 ﻿from math2 import map_range_clamped
 
-BASE_PRODUCTION = 200
-BASE_CONSUMPTION = 120
+BASE_PRODUCTION = 50
 
 TRADE_GOODS_DATA = {
         "Essential Goods":  {"base_price": 22,  "base_range": 0.45, "volatility_price":3,  "volatility_duration": 12,  "base_production": BASE_PRODUCTION / 22},

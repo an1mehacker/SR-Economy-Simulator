@@ -11,7 +11,7 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
-- Passage of Time - Quantities and prices change over time based on market conditions and a growing inflation
+- Passage of Time - Quantities and prices change over time based on market conditions followed by a growing inflation
 - Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
 - Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
 - Realistic Price fluctuations based on the global market conditions and volatility speeds that are different for each trade good
