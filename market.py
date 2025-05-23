@@ -24,7 +24,7 @@ class SimulationStatus(object):
         self.inflation = 1.0
         self.days_elapsed = 0
         self.trade_difficulty_status = {
-            key: {"price_range": value["base_range"]}
+            key: {"price_range": value["base_range"], "scaling_multiplier": TRADE_GOODS_DATA[key]["base_range"] / MAX_RANGE}
             for key, value in TRADE_GOODS_DATA.items()
         }
 
@@ -234,6 +234,7 @@ class MarketGoodStatus:
         self.fluctuation_offset = 0.0 #-1.0 to 1.0
         # Equilibrium friction - Allows markets to reject or want certain goods by changing this amount
         self.equilibrium_friction = 1.0
+        self.supply_ratio = self.total_supply / self.get_equilibrium()
 
     def get_equilibrium(self):
         return self.equilibrium_quantity * self.equilibrium_friction
@@ -296,6 +297,12 @@ class GlobalGoodStatus:
             new_fluctuation = lerp(self.previous_fluctuation, self.target_fluctuation, self.volatility_timer / self.volatility_duration)
             self.current_fluctuation = clamp(new_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
+def get_impacted_markets(markets, per_market_chance=0.05):
+    global_chance = 1 - (1 - per_market_chance) ** len(markets)
+    if random.random() < global_chance:
+        return [m for m in markets if random.random() < per_market_chance]
+    return []
+
 def calculate_buy_price(floor, ceil, supply_ratio):
     """
         :param floor: float - The lowest price multiplier at maximum surplus.
@@ -330,46 +337,62 @@ def calculate_sell_price_logistic(buy_price, supply_ratio):
 
     return buy_price * discount
 
-def trade_good_distribution(total_goods : int, num_slots : int, spread_multiplier=0.75):
+def trade_good_distribution(total_goods: int, num_slots: int, spread_multiplier=0.75) -> list[int]:
     """
     Distributes total_goods into num_slots using a smooth descending pattern with controlled randomness.
 
     :param total_goods: int - Total amount of goods to distribute.
     :param num_slots: int - Number of slots/entities to distribute among.
     :param spread_multiplier: float - Controls spread smoothness (0.5 for balanced, 1.0 for steep drop-off).
-    :return: List[int] - Distributed values in descending order.
+    :return: list[int] - Distributed values in descending order.
     """
+    output = [0] * num_slots
     if total_goods <= 0 or num_slots <= 0:
-        return [0] * num_slots  # Edge case: No goods to distribute
+        return output # Edge case
 
-    # Generate a smooth descending base pattern
+    # Step 1: Create weighted base pattern
     base_pattern = [max(0.1, num_slots - (i * spread_multiplier)) for i in range(num_slots)]
     pattern_sum = sum(base_pattern)
+    distribution = [(x / pattern_sum) for x in base_pattern]  # Normalized weights
 
-    # Scale pattern to match total_goods
+    if total_goods < num_slots:
+        # Probabilistically assign 1 unit at a time based on the distribution weights
+        for _ in range(total_goods):
+            chosen_index = random.choices(range(num_slots), weights=distribution, k=1)[0]
+            output[chosen_index] += 1
+        return output
+
+    # Else: Normal high-goods distribution with smoothing and randomness
     distribution = [(x / pattern_sum) * total_goods for x in base_pattern]
 
-    # Apply controlled randomness based on available supply
-    max_variation = max(1, total_goods // num_slots)  # Ensure reasonable variation
+    max_variation = max(1, total_goods // num_slots)
     random_variation = [random.randint(-max_variation, max_variation) for _ in range(num_slots)]
 
-    # Adjust values while preventing negatives
     for i in range(num_slots):
-        if i < num_slots // 2:  # Early values get slight positive variation
+        if i < num_slots // 2:
             distribution[i] += abs(random_variation[i])
-        else:  # Later values get slight reductions
+        else:
             distribution[i] -= abs(random_variation[i]) * 0.25
 
-    # Convert to integers and prevent negatives
     distribution = [max(0, round(x)) for x in distribution]
 
-    # Ensure total sums up correctly
-    difference = total_goods - sum(distribution)
-    for i in range(abs(difference)):
-        if difference > 0:
-            distribution[i % num_slots] += 1  # Add to the first elements
-        elif difference < 0 < distribution[i % num_slots]:
-            distribution[i % num_slots] -= 1  # Remove from nonzero elements
+    # Correction step
+    diff = total_goods - sum(distribution)
+    for i in range(abs(diff)):
+        if diff > 0:
+            distribution[i % num_slots] += 1
+        elif diff < 0 and distribution[i % num_slots] > 0:
+            distribution[i % num_slots] -= 1
+
+    # Final sanity pass (preserves rightmost producers)
+    final_diff = abs(total_goods - sum(distribution))
+    if final_diff > 0:
+        for i in reversed(range(num_slots)):
+            if final_diff <= 0:
+                break
+            reduce_by = min(distribution[i], final_diff)
+            distribution[i] -= reduce_by
+            final_diff -= reduce_by
 
     return distribution
 
@@ -459,12 +482,12 @@ class Market:
 
         for trade_good, buy_orders in self.buy_orders.items():
             status = self.trade_good_status[trade_good]
-            supply_ratio = status.total_supply / status.get_equilibrium()
 
+            # TODO: Improve the enterprise bonus
             enterprise_bonus = min(max(0.5, status.enterprise_amount) / TRADE_GOOD_ENTERPRISE_RULES[trade_good]["base_amount"], 1.5)
             supply_chain_multiplier = self.get_supply_chain_multiplier(trade_good)
-            consumption = get_consumption_multiplier(self.race, self.development_type, self.political_system, trade_good, supply_ratio)
-            production = get_production_multiplier(self.race, self.development_type, self.political_system, trade_good, supply_ratio, supply_chain_multiplier, illegal_goods) * enterprise_bonus
+            consumption = get_consumption_multiplier(self.race, self.development_type, self.political_system, trade_good, status.supply_ratio)
+            production = get_production_multiplier(self.race, self.development_type, self.political_system, trade_good, status.supply_ratio, supply_chain_multiplier, illegal_goods) * enterprise_bonus
             market_size_multiplier = map_range_clamped(self.market_size, 500, 3000, 0.5, 1.5)
             net_production = market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"] * (production - consumption)
 
@@ -477,12 +500,11 @@ class Market:
                 net_quantity = math.floor(net_production) if random.random() < -fractional else math.ceil(net_production)
 
             if verbose_only:
-                print(f"{trade_good:<20}: {"+" if net_production >= 0 else ""}{net_quantity:<4}"
+                print(f"{trade_good:<17}: {"+" if net_production >= 0 else ""}{net_quantity:<4}"
                     f"(base:{market_size_multiplier * TRADE_GOODS_DATA[trade_good]["base_production"]:.1f}"
                     f"|supply chain: {supply_chain_multiplier:.1f}|con:{consumption:.1f}"
                     f"|prod:{production:.1f})|corpo bonus: {enterprise_bonus:.2f}")
-
-            if net_quantity != 0:
+            elif net_quantity != 0:
                 current = status.total_supply
                 status.total_supply += net_quantity
                 self.sell_order[trade_good].quantity += -net_quantity
@@ -491,6 +513,7 @@ class Market:
                     if current + net_quantity <= cutoff_quantity:
                         continue # below the cutoff point
                     else:
+                        # we only consider quantities to add that would be above the cutoff
                         quantity_to_add = max(min(current + net_quantity - cutoff_quantity, net_quantity), 0)
                         distributed_quantities = trade_good_distribution(int(quantity_to_add), len(buy_orders), 0.5)
                         for i, quantity in enumerate(distributed_quantities):
@@ -499,6 +522,7 @@ class Market:
                     if current <= cutoff_quantity:
                         continue
                     else:
+                        # we only consider quantities to remove that are above the cutoff but not so it would go below it
                         quantity_to_remove = min(abs(net_quantity), max(current - cutoff_quantity, 0))
                         distributed_quantities = trade_good_distribution(int(quantity_to_remove), len(buy_orders), 0.5)
 
@@ -535,9 +559,8 @@ class Market:
             return multiplier
         for dependency_trade_good in required:
             status = self.trade_good_status[dependency_trade_good]
-            ratio = status.total_supply / status.get_equilibrium()
-            if ratio < DEFICIT_SUPPLY_RATIO:
-                ratio = map_range_clamped(ratio, 0, DEFICIT_SUPPLY_RATIO, 0, 1.0)
+            if status.supply_ratio < DEFICIT_SUPPLY_RATIO:
+                ratio = map_range_clamped(status.supply_ratio, 0, DEFICIT_SUPPLY_RATIO, 0, 1.0)
                 multiplier *= ratio
         return multiplier
 
@@ -578,9 +601,9 @@ class Market:
     def update_available_supply(self, trade_good):
         status = self.trade_good_status[trade_good]
         new_supply = status.total_supply - bracketed_pricing(status.get_equilibrium())[1]
-        self.trade_good_status[trade_good].available_supply = new_supply if new_supply >= 0 else 0
+        self.trade_good_status[trade_good].available_supply = max(new_supply, 0)
 
-        ratio = status.total_supply / status.get_equilibrium()
+        ratio = status.supply_ratio
         if DEFICIT_SUPPLY_RATIO < ratio < SURPLUS_SUPPLY_RATIO:
             situation = "Balanced"
         elif ratio <= DEFICIT_SUPPLY_RATIO:
@@ -653,7 +676,7 @@ class Market:
                 status.last_sell_supply = new_supply
                 print(f"Last Sell now: {status.last_sell_supply}")
 
-        ratio = new_supply / status.get_equilibrium() if status.get_equilibrium() != 0 else new_supply
+        ratio = new_supply / status.get_equilibrium()
 
         sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
 
@@ -753,48 +776,6 @@ class Market:
 
         # for an accurate calculation of prices, items retain complete breakdown of quantities and prices
         return Item(trade_good, sum(order_breakpoint_quantities), list(zip(order_breakpoint_quantities, order_breakpoint_prices)), self.name, order.producer)
-
-    def distribute_production_consumption(self, trade_good, net_production):
-        if net_production == 0:
-            return  # Nothing to distribute
-
-        buy_orders = self.buy_orders[trade_good]
-        sell_order = self.sell_order[trade_good]
-
-        if not buy_orders:
-            return  # No one to distribute to
-
-        weights = []
-        total_weight = 0
-        n = len(buy_orders)
-
-        for i, order in enumerate(buy_orders):
-            # Earlier orders get more weight; use exponential decay bias
-            positional_bias = (n - i) ** 1  # you can tweak the exponent for sharper or softer bias
-            randomness = random.uniform(0.8, 1.2)
-            weight = positional_bias * randomness
-            weights.append(weight)
-            total_weight += weight
-
-        distributed_total = 0
-        for i, order in enumerate(buy_orders):
-            share = round((weights[i] / total_weight) * net_production)
-
-            # Prevent over-distribution
-            if net_production > 0:
-                share = min(share, net_production - distributed_total)
-                order.quantity += share
-            else:
-                share = max(share, net_production - distributed_total)
-                actual_reduction = min(abs(share), order.quantity)
-                order.quantity -= actual_reduction
-
-            distributed_total += share
-
-            if abs(distributed_total) >= abs(net_production):
-                break
-
-        sell_order.quantity += -net_production
 
     def distribute_goods(self, trade_good, old_supply, new_supply):
         # distributes goods to producers with lower order amounts if we're in a surplus situation
@@ -896,17 +877,13 @@ class Market:
                                      SimulationStatus().global_good_status[trade_good].current_fluctuation,
                                      self.get_sell_price_bonus(None, trade_good))
 
-    def calculate_buy_price_point(self, order_listing : OrderListing, trade_good : str, new_supply_ratio=-1) -> float:
+    def calculate_buy_price_point(self, order_listing : OrderListing, trade_good : str, supply_ratio) -> float:
         # I'm pretty proud of this as this ensures the resulting price to be strictly within the base range, and it's
         # scaled and adjusted for trade difficulty and the base price range of the trade good
-        if trade_good not in TRADE_GOODS_DATA.keys():
-            return -1
-
         base_range = SimulationStatus().trade_difficulty_status[trade_good]["price_range"]
-        status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
-        range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / MAX_RANGE
+        range_scaling_multiplier = SimulationStatus().trade_difficulty_status[trade_good]["scaling_multiplier"]
 
         positive_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier >= 1.0 else 0
         negative_producer_modifier = abs((1 - order_listing.producer.price_modifier)) if order_listing.producer.price_modifier < 1.0 else 0
@@ -928,16 +905,10 @@ class Market:
 
         # for logi function, can be a range of something like 1.20-1.25 or 0.75-0.90 or 0.75-1.25 without modifiers
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
-        ratio = status.total_supply / status.get_equilibrium() if new_supply_ratio == -1 else new_supply_ratio
+        return calculate_buy_price(floor, ceil, supply_ratio)
 
-        return calculate_buy_price(floor, ceil, ratio)
-
-    def calculate_sell_price_point(self, trade_good : str, new_supply_ratio=-1) -> (float, float):
-        if trade_good not in TRADE_GOODS_DATA.keys():
-            return -1
-
+    def calculate_sell_price_point(self, trade_good : str, supply_ratio) -> (float, float):
         base_range = SimulationStatus().trade_difficulty_status[trade_good]["price_range"]
-        status = self.trade_good_status[trade_good]
         diff = SimulationStatus().trade_difficulty_multiplier
 
         range_scaling_multiplier = TRADE_GOODS_DATA[trade_good]["base_range"] / MAX_RANGE
@@ -957,12 +928,11 @@ class Market:
             negative_modifiers -= positive_modifiers
             positive_modifiers = 0
 
-        ratio = status.total_supply / status.get_equilibrium() if new_supply_ratio == -1 else new_supply_ratio
 
         floor, ceil = 1 - base_range + positive_modifiers , 1 + base_range - negative_modifiers
-        generic_buy_price = calculate_buy_price(floor, ceil, ratio)
+        generic_buy_price = calculate_buy_price(floor, ceil, supply_ratio)
 
-        sell_price = calculate_sell_price_logistic(generic_buy_price, ratio)
+        sell_price = calculate_sell_price_logistic(generic_buy_price, supply_ratio)
 
         return sell_price, generic_buy_price
 
@@ -1027,8 +997,8 @@ class Market:
         status.available_supply = available_supply
 
         # --- Calculate prices ---
-        ratio = supply / equilibrium if equilibrium != 0 else supply
-        sell_price, buy_price = self.calculate_sell_price_point(trade_good, ratio)
+        status.supply_ratio = supply / equilibrium
+        sell_price, buy_price = self.calculate_sell_price_point(trade_good, status.supply_ratio)
         status.buy_price, status.sell_price = buy_price, sell_price
 
         letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1043,7 +1013,7 @@ class Market:
             corp_name = interstellar_names[i]
             producer = Producer("Interstellar", corp_name, SimulationStatus().get_corp_price_multiplier(corp_name))
             buy_order = OrderListing(interstellar_goods[i], producer)
-            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
+            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good, status.supply_ratio)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
             self.buy_orders[trade_good].append(buy_order)
 
@@ -1053,7 +1023,7 @@ class Market:
             producer = Producer("Enterprise", corp_name,
                                 random.uniform(1 - ENTERPRISE_PRICE_SPREAD, 1 + ENTERPRISE_PRICE_SPREAD))
             buy_order = OrderListing(enterprise_goods[i], producer)
-            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
+            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good, status.supply_ratio)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
             self.buy_orders[trade_good].append(buy_order)
 
@@ -1062,7 +1032,7 @@ class Market:
             corp_name = generate_name(race)
             producer = Producer("Individual", corp_name, random.uniform(1 - INDIVIDUAL_PRICE_SPREAD, 1 + INDIVIDUAL_PRICE_SPREAD))
             buy_order = OrderListing(individual_goods[i], producer)
-            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good)
+            buy_order.price_point = self.calculate_buy_price_point(buy_order, trade_good, status.supply_ratio)
             buy_order.calculated_price = self.get_buy_price_by_order(buy_order, trade_good)
             self.buy_orders[trade_good].append(buy_order)
 
@@ -1097,7 +1067,7 @@ class Market:
         if debug:
             print(f"Price Ranges: {floor:.2f}-{ceil:.2f} | Price Points: {status.buy_price:.2f} "
                   f"{status.sell_price:.2f} | Last Buy/Sell Amounts:{status.last_buy_supply:.0f}/{status.last_sell_supply:.0f} "
-                  f"| Supply Ratio: {status.total_supply / status.get_equilibrium():.2f} "
+                  f"| Supply Ratio: {status.supply_ratio:.2f} "
                   f"| Today's Fluctuation: {SimulationStatus().global_good_status[trade_good].current_fluctuation:.2f}")
 
         print()

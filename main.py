@@ -20,18 +20,19 @@ def regroup_trade_good_statuses(list_of_markets):
 def wait():
     start_time = time.time()
     statuses = regroup_trade_good_statuses(markets)
+    #print([m.name for m in get_impacted_markets(markets)])
+
     for trade_good in TRADE_GOODS_DATA:
         SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])
     for m in markets:
         m.balance_quantities_sell()
-        if m == market:
-            m.consumption_production(False)
-        else:
-            m.consumption_production()
+        m.consumption_production()
         for trade_good in TRADE_GOODS_DATA:
             m.balance_quantities(trade_good)
             m.drift_prices(trade_good)
             # recalculating prices should be the last thing to do
+            status = m.trade_good_status[trade_good]
+            status.supply_ratio = status.total_supply / status.get_equilibrium()
             m.recalculate_prices(trade_good, "", False)
             m.update_available_supply(trade_good)
 
@@ -310,16 +311,17 @@ if __name__ == "__main__":
 
             item_index = user.find_item_index(found_item)
             item = user.items[item_index]
-            old_cost = item.total_value
+            old_cost_per = round(item.total_value / item.total_quantity)
 
             item = market.sell(tg, item, sell_amount) # returns the amount of items that were sold
             revenue = item.total_value
+            quantity = item.total_quantity
 
             user.remove_item(item) # TODO: market should only sell if this doesn't fail as this executes anyway
             user.money += item.total_value
             if len(item.breakdown_prices) == 1:
                 print(f"You sold {item.total_quantity} {tg} for a total of {item.total_value}cr! "
-                      f"Profit: {revenue - old_cost}cr - Margins: {round(100 * (revenue - old_cost) / old_cost, 1)}%"
+                      f"Profit: {revenue - old_cost_per * quantity}cr - Margins: {round(100 * (revenue/quantity - old_cost_per) / old_cost_per, 1)}%"
                       f"\nYour money: {user.money}cr")
                 command, params = parse_command()
                 continue
@@ -427,7 +429,7 @@ if __name__ == "__main__":
 
         if command == "dp":
             # Debug prices
-            ratio = market.trade_good_status[tg].total_supply / market.trade_good_status[tg].equilibrium_quantity
+            ratio = market.trade_good_status[tg].supply_ratio
             market.simulate_buy_price(tg, ratio, 0)
             market.simulate_sell_price(tg, ratio, Item(tg, 0, [], '', ""))
 
@@ -455,4 +457,3 @@ if __name__ == "__main__":
             market.detailed_listing(tg, user.items)
 
         command, params = parse_command()
-

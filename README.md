@@ -6,12 +6,12 @@ Try the front end version (very WIP): https://finesseandstyle.github.io/SR-Econo
 
 # Features
 - Buy from multiple Producers and trade goods at different prices and sell them with your bought items
-- Producers come in 3 types: Interstellar (multiple markets), Enteprise and Individual. Smaller producers have greater price variation but lower supply
-- Search for profitable trades and travel to other markets to gain money
+- Producers come in 3 types: Interstellar (multiple markets), Enterprise and Individual. Smaller producers have greater price variation but lower supply
+- Search potential trades and travel to other markets to make profitable trades
 - Prices reflect Supply and Demand Law determined by the Market's Equilibrium and Current Supply quantities.
 - Selling prices approach buying prices to incentivize selling when supply is low
 - Internal Supply - 75% of the equilibrium amount is reserved only for the market, to avoid a player induced deficit
-- Passage of Time - Prices rise and fall over time towards a new price when supply is affected, fluctuate over time and grow to reflect a rising inflation
+- Passage of Time - Quantities and prices change over time based on market conditions and a growing inflation
 - Delayed Self-balancing market - over time buying will add equal demand to selling and vice versa when at a surplus
 - Bracketed Pricing - Prices recalculate after reaching critical breakpoints to avoid being rewarded for flooding a market
 - Realistic Price fluctuations based on the global market conditions and volatility speeds that are different for each trade good
@@ -32,7 +32,7 @@ Here's an example use
 0.1 - All basic features implemented, you can buy goods in one market and sell to another, but without a money limit
 
 # Planned features
-- Passive production and consumption of trade goods. Events that can trigger large production or consumption changes. 
+- Events that can trigger large production or consumption changes. 
 - Producer Bonuses. Check bonuses on other markets and seek the corresponding producers that get rewarded for more profit
 - Growth - Triggers producer bonuses, points price fluctuations downwards in price. Lasts 0.5-1.5 years.
 - Recession - triggers selling bonuses, points price fluctuations upwards in price. Also lasts 0.5-1.5 years
