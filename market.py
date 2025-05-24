@@ -51,7 +51,6 @@ class SimulationStatus(object):
         self.days_elapsed += 1
         new_inflation = clamp(self.days_elapsed / MAX_INFLATION_DAYS, 0, 1.0)
         self.inflation = lerp(1.0, MAX_INFLATION, new_inflation)
-        #print(self.inflation)
 
     def calculate_price_ranges(self, trade_difficulty):
         # only need to be done once
@@ -297,7 +296,27 @@ class GlobalGoodStatus:
             new_fluctuation = lerp(self.previous_fluctuation, self.target_fluctuation, self.volatility_timer / self.volatility_duration)
             self.current_fluctuation = clamp(new_fluctuation, -self.max_fluctuation, self.max_fluctuation)
 
-def get_impacted_markets(markets, per_market_chance=0.05):
+def burst_consumption(markets):
+    if markets:
+        for m in markets:
+            surplus_goods = []
+            weights = []
+
+            for trade_good, status in m.trade_good_status.items():
+                if status.supply_ratio > 1:
+                    surplus_goods.append(trade_good)
+                    weights.append(status.supply_ratio)  # Weight based on how much above equilibrium
+
+            if surplus_goods:
+                chosen_good = random.choices(surplus_goods, weights=weights, k=1)[0]
+                status = m.trade_good_status[chosen_good]
+                consumption_portion = map_range_clamped(status.supply_ratio, 1, 2, 0.05, 0.3)
+                quantity = round(status.available_supply * consumption_portion)
+                m.remove_goods(chosen_good, quantity)
+                print(f"{m.name} - {chosen_good} - x{quantity}")
+
+
+def get_impacted_markets(markets, per_market_chance=0.07):
     global_chance = 1 - (1 - per_market_chance) ** len(markets)
     if random.random() < global_chance:
         return [m for m in markets if random.random() < per_market_chance]
@@ -348,7 +367,7 @@ def trade_good_distribution(total_goods: int, num_slots: int, spread_multiplier=
     """
     output = [0] * num_slots
     if total_goods <= 0 or num_slots <= 0:
-        return output # Edge case
+        return output
 
     # Step 1: Create weighted base pattern
     base_pattern = [max(0.1, num_slots - (i * spread_multiplier)) for i in range(num_slots)]
@@ -360,6 +379,7 @@ def trade_good_distribution(total_goods: int, num_slots: int, spread_multiplier=
         for _ in range(total_goods):
             chosen_index = random.choices(range(num_slots), weights=distribution, k=1)[0]
             output[chosen_index] += 1
+
         return output
 
     # Else: Normal high-goods distribution with smoothing and randomness
@@ -372,7 +392,7 @@ def trade_good_distribution(total_goods: int, num_slots: int, spread_multiplier=
         if i < num_slots // 2:
             distribution[i] += abs(random_variation[i])
         else:
-            distribution[i] -= abs(random_variation[i]) * 0.25
+            distribution[i] -= abs(random_variation[i]) * 0.15
 
     distribution = [max(0, round(x)) for x in distribution]
 
@@ -616,10 +636,14 @@ class Market:
 
         self.trade_good_status[trade_good].situation = situation
 
-    def add_goods(self, trade_good, ee_index, amount):
-        self.buy_orders[trade_good][ee_index].quantity += amount
+    def add_goods(self, trade_good, amount):
+        cutoff = round(DEFICIT_SUPPLY_RATIO * self.trade_good_status[trade_good].get_equilibrium())
+        quantity_to_add = max(min(self.trade_good_status[trade_good].total_supply + amount - cutoff, amount), 0)
+        distributed_quantities = trade_good_distribution(int(quantity_to_add), len(self.buy_orders), 0.5)
+        for i, quantity in enumerate(distributed_quantities):
+            self.buy_orders[trade_good][i].quantity += quantity
+
         self.trade_good_status[trade_good].total_supply += amount
-        self.recalculate_prices(trade_good, "Buy", False)
         self.update_available_supply(trade_good)
 
         return amount
@@ -634,7 +658,6 @@ class Market:
             amount_remaining -= quantity_removed
 
         self.trade_good_status[trade_good].total_supply -= amount
-        self.trade_good_status[trade_good].last_buy_supply, self.trade_good_status[trade_good].last_sell_supply = self.trade_good_status[trade_good].total_supply, self.trade_good_status[trade_good].total_supply
         self.recalculate_prices(trade_good, "Sell", False)
         self.update_available_supply(trade_good)
 
@@ -1003,9 +1026,17 @@ class Market:
 
         letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         # --- Distribute goods among producer types based on share ---
-        interstellar_goods = trade_good_distribution(round(available_supply * interstellar_share), interstellar_amount, 0.5)
-        enterprise_goods = trade_good_distribution(round(available_supply * enterprise_share), enterprise_amount, 0.5)
-        individual_goods = trade_good_distribution(round(available_supply * individual_share), individual_amount, 0.5)
+        if available_supply > 0:
+            split_supply = split_integer(available_supply, [interstellar_share, enterprise_share, individual_share])
+            # ensure that quantities are correctly generated initially
+            if enterprise_amount <= 0 < interstellar_amount:
+                split_supply[0] += split_supply[1]
+                split_supply[1] = 0
+        else:
+            split_supply = [0, 0, 0]
+        interstellar_goods = trade_good_distribution(split_supply[0], interstellar_amount, 0.5)
+        enterprise_goods = trade_good_distribution(split_supply[1], enterprise_amount, 0.5)
+        individual_goods = trade_good_distribution(split_supply[2], individual_amount, 0.5)
 
         # --- Generate BUY orders for Interstellar producers ---
         interstellar_names = generate_interstellar_corp_names(self.race, trade_good, interstellar_amount)

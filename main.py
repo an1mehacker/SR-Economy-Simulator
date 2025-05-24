@@ -1,5 +1,8 @@
 import time
 import tracemalloc
+
+from matplotlib.pyplot import available_backends
+
 from market import *
 from math2 import clamp
 from collections import defaultdict
@@ -20,7 +23,7 @@ def regroup_trade_good_statuses(list_of_markets):
 def wait():
     start_time = time.time()
     statuses = regroup_trade_good_statuses(markets)
-    #print([m.name for m in get_impacted_markets(markets)])
+    burst_consumption(get_impacted_markets(markets))
 
     for trade_good in TRADE_GOODS_DATA:
         SimulationStatus().global_good_status[trade_good].calculate_daily_fluctuation(statuses[trade_good])

@@ -12,7 +12,7 @@ Rare random events that add new or remove low Market Share Enterprise EEs from p
 inflation is a global price modifier
 inflation rises from 100% to 400% (4.0x) in 10k days
 
-planet market modifers are 3x compared to lowest planets
+planet market modifiers are 3x compared to lowest planets
 
 Simulation generates EEs for each habitable object based on a planet's size. 
 First, according to a formula generates the total amount of trade goods. 
@@ -84,18 +84,19 @@ Rare minerals - Rare metals and raw ore that are highly prized. Low volatility, 
 
 Intermediary: 
 Refined Minerals - Glass, Metals and other useful alloys and compounds ready to be used for industry
+Microchips
 
 Manufactured:
 Essentials - basic necessities to live, food, water, hygienic products, clothes, everyday stuff. Medium volatility, low price. Critical
 Medicine - Pills, life saving drugs, prescription medicine, medical supplies. Low volatility, low+ price. Critical except on maloq planets.
-Vice Goods - Alcohol and Cigarretes. Low volatility, Medium price. Critical on human and peleng planets.
+Vice Goods - Alcohol and Cigarettes. Low volatility, Medium price. Critical on human and peleng planets.
 Technology Goods - Gadgets, computers, anything that requires a power source to run. Medium volatility, Medium+ price.
 Luxury Items - Rare, well made objects crafted by actual people like jewelry and designer clothing. medium volatility, very high price.
 Weapons - Grenades, blasters, firearms, explosives, combat gear. Medium volatility, high price.
 Drugs - High volatility, very high price.
 Equipment parts - parts required to produce ships and equipment and for repair. Medium volatility, Medium price. 
 Fuel (Critical) - Low price and variability
-Ammonition - Medium price, low variability
+Ammuition - Medium price, low variability
 
 When displaying the price of a trade good we need 3 numbers: Base price of the trade good, inflation and price point. 
 Price point is a multiplier, it's the main gauge at how expensive a trade good is. When comparing trade goods of the same type (accounting for inflation) the difference in price is the price point.
@@ -104,7 +105,6 @@ To display the final price we multiply those 3 numbers.
 Example, tech goods's base price 60, inflation is at 2.0 and the specific price point is at 0.9. The final price is 108cr. 
 
 When updating prices we need to calculate this number again to account for inflation.
-
 
 
 Supply Demand
@@ -159,11 +159,9 @@ Global Listing - List of Summary Listings for each Trade Goods both for buying a
 0.54 1.46  - 0.45 price range
 Difference of 0.22
 
-
 0.73 1.23 - 0.23 range
 0.50 1.55 - 0.50 range
 Difference of 0.23/0.32
-
 
 ------------
 FULL REWORK
@@ -194,156 +192,3 @@ Goals:
 - Simplify the market and make it less demanding computationally
 - Resulting price ranges are deterministic instead of having many price modifiers that increase the theoretical max ranges
 - Self balancing mechanic ensures a smooth transition between goods that are bought or sold slowly get available as the other as opposed to being instant.
-
-[['Ai', 'ko', 'chak'],
-['Ay', 'hi', 'ka'],
-['Al', 'eh', 'cha'],
-['A', 'lets', 'kiish'],
-['A', 'llyas', 'ta'],
-['A', 'pak', 'ash'],
-['A', 'hai', 'cak'],
-['Ve', 'rem', 'chush', 'ka'],
-['Bush', 'ka'],
-['A', 'koi', 'chu', ha'],
-['A', 'sih', 'ak'],
-['Ash', 'keh', 'lak'],
-['Ih', 'tish', 'is'],
-['Ih', 'tsi', 'chak'],
-['Its', 'eh', 'akk', 'a'],
-['Ye', 'chesh', 'ka'],
-['Ye', 'kush', 'ich', 'an'],
-['Ye', 'tsi', 'kash'],
-['Ye', 'tsom', 'ah', 'ak'],
-['Kas', 'at', 'ish'],
-['Ka', 'hit', 'sak'],
-['Ka', 'shikk', 'a'],
-['Ke', 'shet', 'skis'],
-['Kin', 'tak', 'sha'],
-['Ku', 'sha', 'nak'],
-['La', 'pash', 'ak'],
-['La', 'hat', 'san'],
-['La', 'hal', 'yak'],
-['La', 'tsen', 'kor'],
-['La', 'tsik', 'ah'],
-['La', 'tsok', 'ka'],
-['Lek', 'eshk', 'is'],
-['Lel', 'kash'],
-['Le', 'pra', 'kan'],
-['Lep', 'tank'],
-['Les', 'int', 'sak'],
-['Le', 'toh', 'cha'],
-['Let', 'sek', 'ka'],
-['Let', 'si', 'sha', 'cha'],
-['Let', 'set', 'skish'],
-['Lik', 'sen', 'ats'],
-['Li', 'pesh', 'ka'],
-['Lip', 'shik'],
-['Li', 'shit', 'sta'],
-['Lok', 'han', 'ka'],
-['Lo', 'che', 'chish'],
-['Lyak', 'shit', 'ish'],
-['Lya', 'sosh', 'ik'],
-['Lya', 'hit', 'sak'],
-['Lya', 'chish', 'kan'],
-['Na', 'tse', 'kish'],
-['Na', 'chik', 'sha'],
-['Na', 'shtoch', 'ka'],
-['Nats', 'chak'],
-['Nel', 'ish', 'ek'],
-['Ni', 'sha', 'hak'],
-['Nui', 'tsach', 'ka'],
-['Nu', 'kit', 'sak'],
-['Nuk', 'tik', 'sha'],
-['Nuh', 'ap', 'ash'],
-['Nu', sesh', 'ka', 'li'],
-['Pen', 'ech', 'as', 'ka'],
-['Peh', 'an', 'kash'],
-['Ra', 'ye' 'cha'],
-['Ray', 'han'],
-['Rat', 'lot', 'ska'],
-['Ra', 'hot', 'sis'],
-['Ret', 'sek', 'chish'],
-['Rio', 'hats'],
-['Ri', 'tsash', 'ka'],
-['Ri', 'chet', 'sis'],
-['Ro', 'plat', 'ska'],
-['Rul', 'yah', 'a'],
-['Ruh', 'al', 'ats'],
-['Sai', 'na', 'shi'],
-['Sa', 'vin', 'ka'],
-['Sei', 'sos', 'ka'],
-['Sip', 'ats', 'ka'],
-['Sit', 'she', 'plits'],
-['Sui', 'tsan', 'ka'],
-['Suh', 'ats', 'an'],
-['Sut', 'say', 'kish'],
-['Ta', 'ka', 'sha'],
-['Ta', 'sha', 'tak'],
-['Te', 'tsish', 'kis'],
-['Ti', 'tsin', 'chak'],
-['Ui', 'kush', 'ka'],
-['U', 'kay', 'shak'],
-['U', 'lyan', 'kish', 'la'],
-['U', 'pa', 'tish', 'ah'],
-['U', 'hayt', 'sent'],
-['Uh', 'eh', 'ech', 'ish'],
-['Uh', 'tak', 'sha'],
-['Uk', 'shu', 'tak'],
-['U', 'tsay', 'han'],
-['U', 'tsan', 'ha'],
-['U', 'tse', 'lak', 'sha'],
-['U', 'tse', 'tsa', 'shik'],
-['U', 'tsesh', 'li'],
-['U', 'tsuh', 'ek'],
-['U', 'chat', 'slis'],
-['U', 'chu', 'lish'],
-['U', 'shik', 'ka'],
-['U', 'ship', 'an', 'ka'],
-['U', 'shko', 'pek'],
-['U', 'sho', 'tsis'],
-['Ha', 'na', 'chish'],
-['He', 'kesh', 'ka'],
-['He', 'tse', 'tak'],
-['Tsai', 'kah'],
-['Tsai', 'shis', 'ka'],
-['Tsa', 'kla'],
-['Tsa', 'lot', 'sha'],
-['Tsa', 'mar', 'tash'],
-['Tset', 'sha', 'pru'],
-['Tsaa', 'chin', 'shak'],
-['Tse', 'pish', 'pan'],
-['Tse', 'tse', 'nash'],
-['Tse', 'chut', 'ka'],
-['Tsi', 'pai', 'shi'],
-['Tsi', 'pek', 'sha'],
-['Tsi', 'pish', 'an'],
-['Tsi', 'shis', 'ka'],
-['Tsla', 'tak', 'sha'],
-['Tsok', 'ah', 'ak'],
-['Tsop', 'shik'],
-['Tsot', 'ske', 'kesh'],
-['Tsu', 'bak', 'sha'],
-['Tsu', 'ka', 'li'],
-['Tsu', 'kesh', 'ka'],
-['Che', 'ke', 'shan'],
-['Ches', 'pei', 'ka'],
-['Ches', 'ek', 'ish'],
-['Chesh', 'ui', 'kis'],
-['Chi', 'kash'],
-['Cha', 'pel', 'li'],
-['Chiv', 'chal', 'ka'],
-['Shai', 'nah'],
-['Shat', 'ap', 'an'],
-['Shat', 'sak'],
-['Shek', 'ech', 'a'],
-['Shek', 'its', 'ak'],
-['Sheh', 'lak'],
-['Shet', 'sen', 'ka'],
-['Shet', 'sap', 'lan'],
-['Shu', 'kuk', 'ha'],
-['Ya', 'kit', 'ses', 'ka'],
-['Ya', 'tat', 'chik'],
-['Ya', 'hat', 'sish'],
-['Ya', 'tsik', 'ka']]
-
-

@@ -32,3 +32,23 @@ def map_range_clamped(value, in_min, in_max, out_min, out_max) -> float:
 
 def sign(value) -> float:
     return 1.0 if value >= 0 else -1.0
+
+def split_integer(total: int, proportions: list[float]) -> list[int]:
+    """
+    @param total: A number to be divided by the proportions
+    @param proportions: a list of floats that add up to exactly 1, eg [1/3, 2/3] or [0.1, 0.2, 0.3, 0.4]
+    @return: A list of the resulting integers proportionally divided that add exactly to total.
+    """
+    # Initial raw allocations
+    raw = [p * total for p in proportions]
+    floored = [int(x) for x in raw]
+    remainder = total - sum(floored)
+
+    # Distribute remaining units to the largest remainders
+    remainders = [(i, raw[i] - floored[i]) for i in range(len(proportions))]
+    remainders.sort(key=lambda x: x[1], reverse=True)
+
+    for i in range(remainder):
+        floored[remainders[i][0]] += 1
+
+    return floored
